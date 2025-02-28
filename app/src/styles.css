@@ -1,8 +1,15 @@
 .logo.vanilla:hover {
   filter: drop-shadow(0 0 2em #ffe21c);
 }
+
+* {
+  margin: 0;
+  padding: 0;
+}
 :root {
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  margin: 0;
+  padding: 0;
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
@@ -18,12 +25,22 @@
 }
 
 .container {
-  margin: 0;
+  margin: 0 10px;
   padding-top: 10vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  text-align: center;
+  /* text-align: center; */
+}
+
+.wifi-networks {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.header {
+  padding-bottom: 10vh ;
 }
 
 .logo {
