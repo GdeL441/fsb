@@ -1,17 +1,17 @@
 const { invoke } = window.__TAURI__.core;
 
-let greetInputEl;
-let greetMsgEl;
-
 async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  greetMsgEl.textContent = await invoke("greet", { name: greetInputEl.value });
+  const wifiSSIDs = await invoke("greet");
+  console.log(wifiSSIDs)
+  ssids.value = wifiSSIDs.join(", ")
 }
 
+let ssids
+
 window.addEventListener("DOMContentLoaded", () => {
-  greetInputEl = document.querySelector("#greet-input");
-  greetMsgEl = document.querySelector("#greet-msg");
-  document.querySelector("#greet-form").addEventListener("submit", (e) => {
+  const btn = document.querySelector("#scan-btn");
+  ssids = document.querySelector("#wifi-ssids")
+  btn.addEventListener("click", (e) => {
     e.preventDefault();
     greet();
   });
