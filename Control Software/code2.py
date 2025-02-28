@@ -1,0 +1,128 @@
+import time
+import ipaddress
+import board
+import digitalio
+from analogio import AnalogIn
+import socketpool
+import wifi
+from adafruit_httpserver import Server, Request, Response, GET, Websocket
+import mdns
+
+# Initialize sensors
+# Using GP26, 27 and 28
+sensorL = {"pin": AnalogIn(board.GP26), "threshold": 25000}
+sensorR = {"pin": AnalogIn(board.GP27), "threshold": 25000}
+sensor3 = {"pin": AnalogIn(board.GP28), "threshold": 25000}
+
+# Initialize robot position/heading and grid
+robot_pos = {"x": 1, "y": 1}
+robot_heading = "N"
+
+# Steps the robot should take, later this should be computed at runtime(grid backtracking)
+steps = ["FORWARD", "LEFT", "FORWARD", "RIGHT", "BACK"]
+current_step = 0
+intersection_detected = False
+
+# WiFi configuration
+SSID = "PICO-FSB"  # Verander X naar groepsnummer
+# PASSWORD = "password"  #Verander voor veiligheidsredenen
+PORT = 80
+
+# Initialize mDNS
+mdns_server = mdns.Server(wifi.radio)
+mdns_server.hostname = "fast-shitbox"
+mdns_server.advertise_service(service_type="_http", protocol="_tcp", port=PORT)
+print("mDNS advertised: _http._tcp, hostname='fast-shitbox'")
+
+#  set static IP address
+ipv4 =  ipaddress.IPv4Address("192.168.1.42")
+netmask =  ipaddress.IPv4Address("255.255.255.0")
+gateway =  ipaddress.IPv4Address("192.168.1.1")
+wifi.radio.set_ipv4_address(ipv4=ipv4,netmask=netmask,gateway=gateway)
+
+wifi.radio.start_ap(ssid=SSID)
+
+# print IP adres
+print("My IP address is", wifi.radio.ipv4_address_ap)
+
+pool = socketpool.SocketPool(wifi.radio)
+server = Server(pool, "/static", debug=True)
+websocket = None
+
+
+# called when server received new connection
+@server.route("/connect-websocket", GET)
+def connect_client(request: Request):
+    global websocket
+
+    # TODO: multiple connections
+    if websocket is not None:
+        websocket.close()  # Close any existing connection
+
+    websocket = Websocket(request)
+
+    return websocket
+
+def poll_websocket():
+    assert websocket != None
+
+    data = websocket.receive(fail_silently=True)
+    if data is not None:
+        print(data)
+        websocket.send_message(data, fail_silently=True)
+
+server.start(host=ipv4, port=PORT)
+print("Server started, open for websocket connection")
+
+def over_line(sensor):
+    return sensor["pin"].value < sensor["threshold"]
+
+
+def move_forward():
+    print("Forward")
+
+
+def turn_left():
+    print("Turn left")
+
+
+def turn_right():
+    print("Turn left")
+
+# Main loop
+while True:
+    print(f"Sensor left: {over_line(sensorL)}")
+    print(f"Sensor right: {over_line(sensorR)}")
+    print(f"Sensor back: {over_line(sensor3)}")
+
+    if steps[current_step] == "FORWARD":
+        # If the current step is moving forward, just follow the line until the next intersections
+
+        if over_line(sensorL) and over_line(sensorR):
+            # Both sensors on line -> intersection detected
+            intersection_detected = True
+            # move_forward()
+        elif over_line(sensorL):
+            # Left sensors on line -> robot should correct by steering left
+            turn_left()
+        elif over_line(sensorR):
+            # Right sensors on line -> robot should correct by steering right
+            turn_right()
+
+        if over_line(sensor3) and intersection_detected:
+            # A intersections was detected and now we are at the intersection -> move to next step
+            # if steps[current_step] == "FORWARD":
+            # the robot
+            current_step += 1
+            intersection_detected = False
+
+    else:
+        # The robot is currently turning, wait until back on line before moving to next step
+        print("TURN")
+
+    server.poll()
+
+    if websocket is not None:
+        poll_websocket()
+
+    time.sleep(0.05)
