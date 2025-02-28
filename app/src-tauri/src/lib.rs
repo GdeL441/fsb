@@ -14,20 +14,22 @@ fn scan() -> Vec<String> {
 }
 
 #[tauri::command]
-fn connect(state: State<'_, AppData>, ssid: String) {
+fn connect(state: State<'_, AppData>, ssid: String) -> Option<String> {
     println!("Connect to {ssid}");
     let mut wifi = state.wifi.lock().unwrap();
     match wifi.connect("ssid", "") {
-        Ok(result) => println!(
-            "{}",
+        Ok(result) => {
             if result == true {
-                "Connection Successful."
+                println!("Connection Successful.");
+                // TODO: Discover with mDNS
+                return Some("ws://192.168.1.42/ws".to_string());
             } else {
-                "Invalid password."
+                println!("Invalid password.");
             }
-        ),
+        }
         Err(err) => println!("The following error occurred: {:?}", err),
     }
+    return None;
 }
 
 #[derive(Clone, Debug)]

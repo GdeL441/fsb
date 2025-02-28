@@ -1,7 +1,8 @@
 import time
+import pwmio
 import ipaddress
 import board
-import digitalio
+from digitalio import Direction, DigitalInOut
 from analogio import AnalogIn
 import socketpool
 import wifi
@@ -14,18 +15,36 @@ sensorL = {"pin": AnalogIn(board.GP26), "threshold": 25000}
 sensorR = {"pin": AnalogIn(board.GP27), "threshold": 25000}
 sensor3 = {"pin": AnalogIn(board.GP28), "threshold": 25000}
 
+# Initialize status sensor
+status_led = DigitalInOut(board.LED)
+status_led.direction = Direction.OUTPUT
+
+# Define motor driver pins
+MOTOR_LEFT_PWM = pwmio.PWMOut(board.GP2, frequency=1000)   # Left motor speed control
+MOTOR_LEFT_IN1 = DigitalInOut(board.GP3)  # Left motor forward
+MOTOR_LEFT_IN2 = DigitalInOut(board.GP4)  # Left motor backward
+
+MOTOR_RIGHT_PWM = pwmio.PWMOut(board.GP5, frequency=1000)  # Right motor speed control
+MOTOR_RIGHT_IN1 = DigitalInOut(board.GP6)  # Right motor forward
+MOTOR_RIGHT_IN2 = DigitalInOut(board.GP7)  # Right motor backward
+
+# Set IN1 and IN2 as outputs
+for pin in [MOTOR_LEFT_IN1, MOTOR_LEFT_IN2, MOTOR_RIGHT_IN1, MOTOR_RIGHT_IN2]:
+    pin.direction = Direction.OUTPUT
+
+
 # Initialize robot position/heading and grid
 robot_pos = {"x": 1, "y": 1}
 robot_heading = "N"
 
 # Steps the robot should take, later this should be computed at runtime(grid backtracking)
-steps = ["FORWARD", "LEFT", "FORWARD", "RIGHT", "BACK"]
+steps = ["FORWARD", "LEFT", "FORWARD", "RIGHT", "FORWARD"]
 current_step = 0
 intersection_detected = False
 
 # WiFi configuration
-SSID = "PICO-FSB"  # Verander X naar groepsnummer
-# PASSWORD = "password"  #Verander voor veiligheidsredenen
+SSID = "PICO-FSB-502"
+# PASSWORD = "password"  #Verander voor veiligheidsredenen, wat is veiligheid?
 PORT = 80
 
 # Initialize mDNS
@@ -35,10 +54,10 @@ mdns_server.advertise_service(service_type="_http", protocol="_tcp", port=PORT)
 print("mDNS advertised: _http._tcp, hostname='fast-shitbox'")
 
 #  set static IP address
-ipv4 =  ipaddress.IPv4Address("192.168.1.42")
-netmask =  ipaddress.IPv4Address("255.255.255.0")
-gateway =  ipaddress.IPv4Address("192.168.1.1")
-wifi.radio.set_ipv4_address(ipv4=ipv4,netmask=netmask,gateway=gateway)
+ipv4 = ipaddress.IPv4Address("192.168.1.42")
+netmask = ipaddress.IPv4Address("255.255.255.0")
+gateway = ipaddress.IPv4Address("192.168.1.1")
+wifi.radio.set_ipv4_address(ipv4=ipv4, netmask=netmask, gateway=gateway)
 
 wifi.radio.start_ap(ssid=SSID)
 
@@ -49,19 +68,19 @@ pool = socketpool.SocketPool(wifi.radio)
 server = Server(pool, "/static", debug=True)
 websocket = None
 
-
 # called when server received new connection
-@server.route("/connect-websocket", GET)
+@server.route("/ws", GET)
 def connect_client(request: Request):
     global websocket
 
-    # TODO: multiple connections
+    # TODO: multiple connections?
     if websocket is not None:
         websocket.close()  # Close any existing connection
 
     websocket = Websocket(request)
 
     return websocket
+
 
 def poll_websocket():
     assert websocket != None
@@ -71,8 +90,10 @@ def poll_websocket():
         print(data)
         websocket.send_message(data, fail_silently=True)
 
+
 server.start(host=ipv4, port=PORT)
 print("Server started, open for websocket connection")
+
 
 def over_line(sensor):
     return sensor["pin"].value < sensor["threshold"]
@@ -88,6 +109,7 @@ def turn_left():
 
 def turn_right():
     print("Turn left")
+
 
 # Main loop
 while True:
