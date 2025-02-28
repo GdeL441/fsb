@@ -2,8 +2,7 @@ const { invoke } = window.__TAURI__.core;
 
 async function greet() {
   const wifiSSIDs = await invoke("greet");
-  console.log(wifiSSIDs)
-  ssids.value = wifiSSIDs.join(", ")
+  ssids.innerText = wifiSSIDs.join(", ")
 }
 
 let ssids
