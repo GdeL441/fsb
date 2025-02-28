@@ -1004,6 +1004,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
+ "wifi-rs",
  "wifiscanner",
 ]
 
@@ -4598,6 +4599,15 @@ dependencies = [
  "thiserror 2.0.11",
  "windows",
  "windows-core 0.60.1",
+]
+
+[[package]]
+name = "wifi-rs"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5771a45b255d05b8f3e7c67833020c6e58d50c20c2e0183a213eee912db628fd"
+dependencies = [
+ "tempfile",
 ]
 
 [[package]]
