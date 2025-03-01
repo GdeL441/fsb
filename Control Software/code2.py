@@ -20,7 +20,7 @@ status_led = DigitalInOut(board.LED)
 status_led.direction = Direction.OUTPUT
 
 # Define motor driver pins
-MOTOR_LEFT_PWM = pwmio.PWMOut(board.GP2, frequency=1000)   # Left motor speed control
+MOTOR_LEFT_PWM = pwmio.PWMOut(board.GP2, frequency=1000)  # Left motor speed control
 MOTOR_LEFT_IN1 = DigitalInOut(board.GP3)  # Left motor forward
 MOTOR_LEFT_IN2 = DigitalInOut(board.GP4)  # Left motor backward
 
@@ -35,7 +35,7 @@ for pin in [MOTOR_LEFT_IN1, MOTOR_LEFT_IN2, MOTOR_RIGHT_IN1, MOTOR_RIGHT_IN2]:
 
 # Initialize robot position/heading and grid
 robot_pos = {"x": 1, "y": 1}
-robot_heading = "N"
+robot_heading = "N"  # "N" "E" "S" "W"
 
 # Steps the robot should take, later this should be computed at runtime(grid backtracking)
 steps = ["FORWARD", "LEFT", "FORWARD", "RIGHT", "FORWARD"]
@@ -67,6 +67,7 @@ print("My IP address is", wifi.radio.ipv4_address_ap)
 pool = socketpool.SocketPool(wifi.radio)
 server = Server(pool, "/static", debug=True)
 websocket = None
+
 
 # called when server received new connection
 @server.route("/ws", GET)
@@ -104,11 +105,38 @@ def move_forward():
 
 
 def turn_left():
+    right_speed = 50
+    MOTOR_RIGHT_IN1.value = True
+    MOTOR_RIGHT_IN2.value = False
+    MOTOR_LEFT_IN1.value = False
+    MOTOR_LEFT_IN2.value = False
+    MOTOR_RIGHT_PWM.duty_cycle = int((right_speed / 100) * 65535)
     print("Turn left")
 
 
 def turn_right():
+    left_speed = 50
+    MOTOR_LEFT_IN1.value = True
+    MOTOR_LEFT_IN2.value = False
+    MOTOR_RIGHT_IN1.value = False
+    MOTOR_RIGHT_IN2.value = False
+    MOTOR_LEFT_PWM.duty_cycle = int((left_speed / 100) * 65535)
     print("Turn left")
+
+
+def stop_motors():
+    MOTOR_RIGHT_IN1.value = False
+    MOTOR_RIGHT_IN2.value = False
+    MOTOR_RIGHT_PWM.duty_cycle = 0
+    MOTOR_LEFT_IN1.value = False
+    MOTOR_LEFT_IN2.value = False
+    MOTOR_LEFT_PWM.duty_cycle = 0
+    print("Stop")
+
+
+def next_step():
+    global current_step
+    current_step += 1
 
 
 # Main loop
@@ -120,27 +148,40 @@ while True:
     if steps[current_step] == "FORWARD":
         # If the current step is moving forward, just follow the line until the next intersections
 
+        if not over_line(sensorL) and not over_line(sensorR):
+            # TODO: is if statement necessary?
+            move_forward()
         if over_line(sensorL) and over_line(sensorR):
             # Both sensors on line -> intersection detected
             intersection_detected = True
-            # move_forward()
+            move_forward()
         elif over_line(sensorL):
             # Left sensors on line -> robot should correct by steering left
             turn_left()
         elif over_line(sensorR):
             # Right sensors on line -> robot should correct by steering right
             turn_right()
+        else: 
+            print("lost")
+            stop_motors()
 
         if over_line(sensor3) and intersection_detected:
             # A intersections was detected and now we are at the intersection -> move to next step
-            # if steps[current_step] == "FORWARD":
-            # the robot
-            current_step += 1
             intersection_detected = False
+            stop_motors()
+            next_step()
 
     else:
         # The robot is currently turning, wait until back on line before moving to next step
-        print("TURN")
+        # TODO: add reference time so this doesn't trigger before the turn even started
+        if steps[current_step] == "RIGHT" and over_line(sensorL):
+            # If the robot is turning right, it should stop turning once the left sensor hits the black line
+            stop_motors()
+            next_step()
+        elif steps[current_step] == "LEFT" and over_line(sensorR):
+            # If the robot is turning left, it should stop turning once the right sensor hits the black line
+            stop_motors()
+            next_step()
 
     server.poll()
 
