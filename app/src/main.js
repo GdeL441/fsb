@@ -3,33 +3,21 @@ const { invoke } = window.__TAURI__.core;
 async function connectWs(url) {
   const ws = new WebSocket(url);
 
-  ws.onopen = () => console.log('WebSocket connection opened');
-  ws.onclose = () => console.log('WebSocket connection closed');
+  ws.onopen = () => {
+    document.getElementById("status").textContent = "Status: Connected";
+    console.log('WebSocket connection opened')
+  };
+  ws.onclose = () => {
+    console.log('WebSocket connection closed')
+    document.getElementById("status").textContent = "Status: Disconnected";
+  };
   ws.onmessage = event => {
     console.log(event)
   };
   ws.onerror = error => {
     console.error(error)
+    document.getElementById("status").textContent = "Status: Disconnected";
   };
-
-  // Connection opened
-  socket.addEventListener("open", (event) => {
-    document.getElementById("status").textContent = "Status: Connected";
-  });
-
-  socket.addEventListener("close", (event) => {
-    socket = undefined;
-    document.getElementById("status").textContent = "Status: Disconnected";
-  });
-
-  socket.addEventListener("message", (event) => {
-    console.log(event.data)
-  });
-
-  socket.addEventListener("error", (event) => {
-    socket = undefined;
-    document.getElementById("status").textContent = "Status: Disconnected";
-  });
 };
 
 async function scan() {
