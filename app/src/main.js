@@ -74,6 +74,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const startMotorBtn = document.querySelector("#start-motor");
   const speedInput = document.querySelector("#speed");
   const disconnectBtn = document.querySelector("#disconnect-btn");
+  const stopBtn = document.querySelector("#stop-motor");
   ssids = document.querySelector("#wifi-ssids")
 
   loading = document.querySelector("#loading")
@@ -99,6 +100,11 @@ window.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "start_motor", speed: 100, direction: "forward" }))
+  });
+  stopMotorBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!ws) return
+    ws.send(JSON.stringify({ action: "stop_motor" }))
   });
   speedInput.oninput = function() {
     if (!ws) return
