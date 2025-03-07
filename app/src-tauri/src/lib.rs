@@ -27,7 +27,7 @@ fn connect(state: State<'_, AppData>, ssid: String) -> Option<String> {
             if result == true {
                 println!("Connection Successful.");
                 // TODO: Discover with mDNS
-                return Some("ws://192.168.1.42/ws".to_string());
+                return Some("ws://192.168.1/ws".to_string());
             } else {
                 println!("Invalid password.");
             }

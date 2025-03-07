@@ -1,23 +1,44 @@
 const { invoke } = window.__TAURI__.core;
 
+let ws = null
 async function connectWs(url) {
-  const ws = new WebSocket(url);
+  ws = new WebSocket(url);
 
   ws.onopen = () => {
     document.getElementById("status").textContent = "Status: Connected";
     console.log('WebSocket connection opened')
+
+    hideConnectView()
   };
   ws.onclose = () => {
     console.log('WebSocket connection closed')
     document.getElementById("status").textContent = "Status: Disconnected";
+    ws = null
+    showConnectView()
   };
   ws.onmessage = event => {
-    console.log(event)
+    const data = JSON.parse(event.data)
+    console.log(event, data)
   };
   ws.onerror = error => {
     console.error(error)
     document.getElementById("status").textContent = "Status: Disconnected";
+    ws = null
+    showConnectView()
   };
+};
+
+const toggleConnectView = () => {
+  document.getElementById("connect-view").classList.toggle("hide")
+  document.getElementById("dashboard").classList.toggle("hide")
+};
+const showConnectView = () => {
+  document.getElementById("connect-view").classList.remove("hide")
+  document.getElementById("dashboard").classList.add("hide")
+};
+const hideConnectView = () => {
+  document.getElementById("connect-view").classList.add("hide")
+  document.getElementById("dashboard").classList.remove("hide")
 };
 
 async function scan() {
@@ -50,6 +71,7 @@ let loading
 window.addEventListener("DOMContentLoaded", () => {
   const btn = document.querySelector("#scan-btn");
   const connectBtn = document.querySelector("#connect-btn");
+  const startMotorBtn = document.querySelector("#start-motor");
   ssids = document.querySelector("#wifi-ssids")
 
   loading = document.querySelector("#loading")
@@ -63,5 +85,10 @@ window.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     const url = await invoke("get_url");
     connectWs(url)
+  });
+  startMotorBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!ws) return
+    ws.send(JSON.stringify({ action: "start_motor", speed: 100 }))
   });
 });
