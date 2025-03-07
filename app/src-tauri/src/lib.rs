@@ -14,10 +14,15 @@ fn scan() -> Vec<String> {
 }
 
 #[tauri::command]
+fn get_url() -> String {
+    "ws://192.168.1.42/ws".to_string()
+}
+
+#[tauri::command]
 fn connect(state: State<'_, AppData>, ssid: String) -> Option<String> {
     println!("Connect to {ssid}");
     let mut wifi = state.wifi.lock().unwrap();
-    match wifi.connect("ssid", "") {
+    match wifi.connect(&ssid, "") {
         Ok(result) => {
             if result == true {
                 println!("Connection Successful.");
@@ -47,7 +52,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![scan, connect])
+        .invoke_handler(tauri::generate_handler![scan, connect, get_url])
         .setup(|app| {
             #[cfg(debug_assertions)]
             app.get_webview_window("main").unwrap().open_devtools();

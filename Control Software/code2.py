@@ -92,7 +92,7 @@ def poll_websocket():
         websocket.send_message(data, fail_silently=True)
 
 
-server.start(host=ipv4, port=PORT)
+server.start(port=PORT)
 print("Server started, open for websocket connection")
 
 
@@ -102,10 +102,11 @@ def over_line(sensor):
 
 def move_forward():
     print("Forward")
+    turn_left(70)
+    turn_right(70)
 
 
-def turn_left():
-    right_speed = 50
+def turn_left(right_speed = 50):
     MOTOR_RIGHT_IN1.value = True
     MOTOR_RIGHT_IN2.value = False
     MOTOR_LEFT_IN1.value = False
@@ -114,8 +115,7 @@ def turn_left():
     print("Turn left")
 
 
-def turn_right():
-    left_speed = 50
+def turn_right(left_speed = 50):
     MOTOR_LEFT_IN1.value = True
     MOTOR_LEFT_IN2.value = False
     MOTOR_RIGHT_IN1.value = False
@@ -145,47 +145,49 @@ while True:
     print(f"Sensor right: {over_line(sensorR)}")
     print(f"Sensor back: {over_line(sensor3)}")
 
-    if steps[current_step] == "FORWARD":
-        # If the current step is moving forward, just follow the line until the next intersections
+    # TODO
+    if current_step + 1 != len(steps):
+        if steps[current_step] == "FORWARD":
+            # If the current step is moving forward, just follow the line until the next intersections
 
-        if not over_line(sensorL) and not over_line(sensorR):
-            # TODO: is if statement necessary?
-            move_forward()
-        if over_line(sensorL) and over_line(sensorR):
-            # Both sensors on line -> intersection detected
-            intersection_detected = True
-            move_forward()
-        elif over_line(sensorL):
-            # Left sensors on line -> robot should correct by steering left
-            turn_left()
-        elif over_line(sensorR):
-            # Right sensors on line -> robot should correct by steering right
-            turn_right()
-        else: 
-            print("lost")
-            stop_motors()
+            if not over_line(sensorL) and not over_line(sensorR):
+                # TODO: is if statement necessary?
+                move_forward()
+            if over_line(sensorL) and over_line(sensorR):
+                # Both sensors on line -> intersection detected
+                intersection_detected = True
+                move_forward()
+            elif over_line(sensorL):
+                # Left sensors on line -> robot should correct by steering left
+                turn_left()
+            elif over_line(sensorR):
+                # Right sensors on line -> robot should correct by steering right
+                turn_right()
+            else: 
+                print("lost")
+                stop_motors()
 
-        if over_line(sensor3) and intersection_detected:
-            # A intersections was detected and now we are at the intersection -> move to next step
-            intersection_detected = False
-            stop_motors()
-            next_step()
+            if over_line(sensor3) and intersection_detected:
+                # A intersections was detected and now we are at the intersection -> move to next step
+                intersection_detected = False
+                stop_motors()
+                next_step()
 
-    else:
-        # The robot is currently turning, wait until back on line before moving to next step
-        # TODO: add reference time so this doesn't trigger before the turn even started
-        if steps[current_step] == "RIGHT" and over_line(sensorL):
-            # If the robot is turning right, it should stop turning once the left sensor hits the black line
-            stop_motors()
-            next_step()
-        elif steps[current_step] == "LEFT" and over_line(sensorR):
-            # If the robot is turning left, it should stop turning once the right sensor hits the black line
-            stop_motors()
-            next_step()
+        else:
+            # The robot is currently turning, wait until back on line before moving to next step
+            # TODO: add reference time so this doesn't trigger before the turn even started
+            if steps[current_step] == "RIGHT" and over_line(sensorL):
+                # If the robot is turning right, it should stop turning once the left sensor hits the black line
+                stop_motors()
+                next_step()
+            elif steps[current_step] == "LEFT" and over_line(sensorR):
+                # If the robot is turning left, it should stop turning once the right sensor hits the black line
+                stop_motors()
+                next_step()
 
     server.poll()
 
     if websocket is not None:
         poll_websocket()
 
-    time.sleep(0.05)
+    time.sleep(0.5)
