@@ -62,7 +62,7 @@ def poll_websocket():
         if json_data["action"] == "start_motor":
             motors_run(int(json_data["speed"]), json_data["direction"])
         elif json_data["action"] == "stop_motor":
-            stop_motors();
+            stop_motors()
 
 
 server.start(port=PORT)
@@ -80,8 +80,9 @@ def motors_run(speed, direction):
     print(duty_cycle)
 
 def stop_motors():
-    MOTOR_DIRECTION.value = False
-    MOTOR_DIRECTION.value = False
+    MOTOR_SPEED.duty_cycle = 0
+    print(MOTOR_DIRECTION.value)
+    print(MOTOR_SPEED.duty_cycle)
 
 # Main loop
 while True:
@@ -89,5 +90,6 @@ while True:
 
     if websocket is not None:
         poll_websocket()
+
 
     time.sleep(0.05)

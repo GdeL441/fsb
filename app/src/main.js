@@ -74,7 +74,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const startMotorBtn = document.querySelector("#start-motor");
   const speedInput = document.querySelector("#speed");
   const disconnectBtn = document.querySelector("#disconnect-btn");
-  const stopBtn = document.querySelector("#stop-motor");
+  const stopMotorBtn = document.querySelector("#stop-motor");
   ssids = document.querySelector("#wifi-ssids")
 
   loading = document.querySelector("#loading")
