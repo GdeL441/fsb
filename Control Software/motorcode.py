@@ -8,6 +8,7 @@ import socketpool
 import wifi
 from adafruit_httpserver import Server, Request, Response, GET, Websocket
 import mdns
+import json
 
 # Initialize sensors
 # Using GP26, 27 and 28
@@ -15,7 +16,7 @@ import mdns
 # Voor de motors: 1 pin met PWM signaal en een andere met ON/OFF voor direction
 # Define motor driver pins
 MOTOR_SPEED = pwmio.PWMOut(board.GP2, frequency=1000)  # Motor speed
-MOTOR_DIRECTION = digitalio(board.GP3)  # Motor direction
+MOTOR_DIRECTION = digitalio.DigitalInOut(board.GP3)  # Motor direction
 MOTOR_DIRECTION.direction = digitalio.Direction.OUTPUT # Set the direction as an output pin
 
 
@@ -59,36 +60,26 @@ def poll_websocket():
 
     data = websocket.receive(fail_silently=True)
     if data is not None:
-        print(data)
         websocket.send_message(data, fail_silently=True)
+        data = json.loads(data)
+        #This code starts the motor
+        if data["action"] == "start_motor":
+            motors_run(int(data["speed"]), data["direction"])
 
 
 server.start(port=PORT)
 print("Server started, open for websocket connection")
 
 
-
-def motors_start():
-    #To Do
-
-def motors_speed(speed):
-    #To do as well
-
-
-
-def stop_motors():
-    MOTOR_RIGHT_IN1.value = False
-    MOTOR_RIGHT_IN2.value = False
-    MOTOR_RIGHT_PWM.duty_cycle = 0
-    MOTOR_LEFT_IN1.value = False
-    MOTOR_LEFT_IN2.value = False
-    MOTOR_LEFT_PWM.duty_cycle = 0
-    print("Stop")
-
-
-def next_step():
-    global current_step
-    current_step += 1
+def motors_run(speed, direction):
+    duty_cycle = int(speed * 65535 / 100)
+    MOTOR_SPEED.duty_cycle = duty_cycle
+    if direction == "forward":
+        MOTOR_DIRECTION.value = True
+    else: 
+        MOTOR_DIRECTION.value = False
+    print(MOTOR_DIRECTION.value)
+    print(duty_cycle)
 
 
 # Main loop
@@ -98,4 +89,4 @@ while True:
     if websocket is not None:
         poll_websocket()
 
-    time.sleep(0.5)
+    time.sleep(0.05)
