@@ -72,6 +72,8 @@ window.addEventListener("DOMContentLoaded", () => {
   const btn = document.querySelector("#scan-btn");
   const connectBtn = document.querySelector("#connect-btn");
   const startMotorBtn = document.querySelector("#start-motor");
+  const speedInput = document.querySelector("#speed");
+  const disconnectBtn = document.querySelector("#disconnect-btn");
   ssids = document.querySelector("#wifi-ssids")
 
   loading = document.querySelector("#loading")
@@ -86,9 +88,24 @@ window.addEventListener("DOMContentLoaded", () => {
     const url = await invoke("get_url");
     connectWs(url)
   });
+  disconnectBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!ws) return
+    ws.close()
+    ws = null
+    showConnectView()
+  });
   startMotorBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     if (!ws) return
-    ws.send(JSON.stringify({ action: "start_motor", speed: 100 }))
+    ws.send(JSON.stringify({ action: "start_motor", speed: 100, direction: "forward" }))
   });
+  speedInput.oninput = function() {
+    if (!ws) return
+    if (this.value > 0) {
+      ws.send(JSON.stringify({ action: "start_motor", speed: this.value, direction: "forward" }))
+    } else {
+      ws.send(JSON.stringify({ action: "start_motor", speed: Math.abs(this.value), direction: "backward" }))
+    }
+  }
 });
