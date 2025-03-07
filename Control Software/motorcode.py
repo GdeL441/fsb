@@ -19,26 +19,21 @@ MOTOR_SPEED = pwmio.PWMOut(board.GP2, frequency=1000)  # Motor speed
 MOTOR_DIRECTION = digitalio.DigitalInOut(board.GP3)  # Motor direction
 MOTOR_DIRECTION.direction = digitalio.Direction.OUTPUT # Set the direction as an output pin
 
-
 # WiFi configuration
 SSID = "PICO-FSB-502"
 # PASSWORD = "password"  #Verander voor veiligheidsredenen, wat is veiligheid?
 PORT = 80
 
-# Initialize mDNS
-mdns_server = mdns.Server(wifi.radio)
-mdns_server.hostname = "fast-shitbox"
-mdns_server.advertise_service(service_type="_http", protocol="_tcp", port=PORT)
-print("mDNS advertised: _http._tcp, hostname='fast-shitbox'")
-
 wifi.radio.start_ap(ssid=SSID)
-
-# print IP adres
-print("My IP address is", wifi.radio.ipv4_address_ap)
 
 pool = socketpool.SocketPool(wifi.radio)
 server = Server(pool, "/static", debug=True)
 websocket = None
+
+# print IP adres
+print("My IP address is", wifi.radio.ipv4_address_ap)
+
+
 
 
 # called when server received new connection
@@ -61,10 +56,11 @@ def poll_websocket():
     data = websocket.receive(fail_silently=True)
     if data is not None:
         websocket.send_message(data, fail_silently=True)
-        data = json.loads(data)
+        json_data = json.loads(data)
+
         #This code starts the motor
-        if data["action"] == "start_motor":
-            motors_run(int(data["speed"]), data["direction"])
+        if json_data["action"] == "start_motor":
+            motors_run(int(json_data["speed"]), json_data["direction"])
 
 
 server.start(port=PORT)
