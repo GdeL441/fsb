@@ -15,7 +15,7 @@ fn scan() -> Vec<String> {
 
 #[tauri::command]
 fn get_url() -> String {
-    "ws://192.168.1.42/ws".to_string()
+    "ws://192.168.4.1/ws".to_string()
 }
 
 #[tauri::command]
@@ -27,7 +27,7 @@ fn connect(state: State<'_, AppData>, ssid: String) -> Option<String> {
             if result == true {
                 println!("Connection Successful.");
                 // TODO: Discover with mDNS
-                return Some("ws://192.168.1/ws".to_string());
+                return Some("ws://192.168.4.1/ws".to_string());
             } else {
                 println!("Invalid password.");
             }
