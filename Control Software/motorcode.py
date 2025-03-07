@@ -1,13 +1,13 @@
 import time
-import pwmio
+import pwmio # type: ignore
 import ipaddress
-import board
-import digitalio
-from analogio import AnalogIn
-import socketpool
-import wifi
-from adafruit_httpserver import Server, Request, Response, GET, Websocket
-import mdns
+import board # type: ignore
+import digitalio # type: ignore
+from analogio import AnalogIn # type: ignore
+import socketpool # type: ignore
+import wifi # type: ignore
+from adafruit_httpserver import Server, Request, Response, GET, Websocket # type: ignore
+
 import json
 
 # Initialize sensors
