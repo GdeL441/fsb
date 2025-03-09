@@ -1,6 +1,7 @@
 import time
 import pwmio
 import ipaddress
+import json
 import board
 from digitalio import Direction, DigitalInOut
 from analogio import AnalogIn
@@ -32,6 +33,8 @@ MOTOR_RIGHT_IN2 = DigitalInOut(board.GP7)  # Right motor backward
 for pin in [MOTOR_LEFT_IN1, MOTOR_LEFT_IN2, MOTOR_RIGHT_IN1, MOTOR_RIGHT_IN2]:
     pin.direction = Direction.OUTPUT
 
+
+started = False
 
 # Initialize robot position/heading and grid
 robot_pos = {"x": 1, "y": 1}
@@ -88,8 +91,17 @@ def poll_websocket():
 
     data = websocket.receive(fail_silently=True)
     if data is not None:
-        print(data)
-        websocket.send_message(data, fail_silently=True)
+        data = json.loads(data)
+
+        if data["action"] == "start":
+            started = True
+        elif data["action"] == "stop":
+            started = False
+        elif data["action"] == "move":
+            print(data["speedL"], data["speedR"])
+        else:
+            print("Received other data: ", data)
+        
 
 
 server.start(port=PORT)
@@ -137,6 +149,18 @@ def stop_motors():
 def next_step():
     global current_step
     current_step += 1
+    if current_step + 1 == len(steps):
+        started = False
+        print("Done")
+        return
+
+    data = {
+     "action": "next_step", 
+     "step": steps[current_step] 
+    }
+
+    if websocket != None: 
+        websocket.send_message(json.dumps(data), fail_silently=True)
 
 
 # Main loop
@@ -145,8 +169,7 @@ while True:
     print(f"Sensor right: {over_line(sensorR)}")
     print(f"Sensor back: {over_line(sensor3)}")
 
-    # TODO
-    if current_step + 1 != len(steps):
+    if started == True:
         if steps[current_step] == "FORWARD":
             # If the current step is moving forward, just follow the line until the next intersections
 

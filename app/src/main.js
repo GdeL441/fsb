@@ -28,15 +28,15 @@ async function connectWs(url) {
   };
 };
 
-const toggleConnectView = () => {
+function toggleConnectView() {
   document.getElementById("connect-view").classList.toggle("hide")
   document.getElementById("dashboard").classList.toggle("hide")
 };
-const showConnectView = () => {
+function showConnectView() {
   document.getElementById("connect-view").classList.remove("hide")
   document.getElementById("dashboard").classList.add("hide")
 };
-const hideConnectView = () => {
+function hideConnectView() {
   document.getElementById("connect-view").classList.add("hide")
   document.getElementById("dashboard").classList.remove("hide")
 };
@@ -55,7 +55,8 @@ async function scan() {
     span.innerText = `${ssid}`
     button.innerText = "Connect"
     button.addEventListener("click", async () => {
-      const wsUrl = await invoke("connect", { ssid })
+      const _wsUrl = await invoke("connect", { ssid })
+      const wsUrl = `ws://${ipInput.value}/ws`
       console.log("connected to wifi", wsUrl)
       if (wsUrl) connectWs(wsUrl)
     });
@@ -67,6 +68,7 @@ async function scan() {
 
 let ssids
 let loading
+let ipInput
 
 window.addEventListener("DOMContentLoaded", () => {
   const btn = document.querySelector("#scan-btn");
@@ -76,6 +78,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const disconnectBtn = document.querySelector("#disconnect-btn");
   const stopMotorBtn = document.querySelector("#stop-motor");
   ssids = document.querySelector("#wifi-ssids")
+  ipInput = document.querySelector("#ip-input")
 
   loading = document.querySelector("#loading")
   loading.style.display = "none"
@@ -86,8 +89,11 @@ window.addEventListener("DOMContentLoaded", () => {
   });
   connectBtn.addEventListener("click", async (e) => {
     e.preventDefault();
-    const url = await invoke("get_url");
-    connectWs(url)
+    // const url = await invoke("get_url");
+
+    const wsUrl = `ws://${ipInput.value}/ws`
+    console.log("Connect to", wsUrl)
+    connectWs(wsUrl)
   });
   disconnectBtn.addEventListener("click", async (e) => {
     e.preventDefault();
