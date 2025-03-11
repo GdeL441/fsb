@@ -1,14 +1,15 @@
 use std::sync::{Arc, Mutex};
 
 use tauri::{Manager, State};
-use wifi_rs::{
-    prelude::{Config, Connectivity},
-    WiFi,
-};
+use wifi_rs::{prelude::*, WiFi};
 
 #[tauri::command]
-fn scan() -> Vec<String> {
-    let wifi = wifiscanner::scan().unwrap_or_default();
+async fn scan() -> Vec<String> {
+    // let wifi = wifiscanner::scan().unwrap_or_default();
+    // let networks = WiFi::get_available_networks().unwrap();
+    let wifi = tokio_wifiscanner::scan()
+        .await
+        .expect("Cannot scan network");
     println!("{wifi:?}");
     wifi.into_iter().map(|w| w.ssid).collect()
 }

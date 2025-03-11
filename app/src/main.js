@@ -18,6 +18,11 @@ async function connectWs(url) {
   };
   ws.onmessage = event => {
     const data = JSON.parse(event.data)
+    if (data.action == "next_step") {
+      console.log(data.step)
+    } else if (data.action == "finished") {
+      console.log("Finished")
+    }
     console.log(event, data)
   };
   ws.onerror = error => {

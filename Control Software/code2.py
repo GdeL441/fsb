@@ -41,7 +41,8 @@ robot_pos = {"x": 1, "y": 1}
 robot_heading = "N"  # "N" "E" "S" "W"
 
 # Steps the robot should take, later this should be computed at runtime(grid backtracking)
-steps = ["FORWARD", "LEFT", "FORWARD", "RIGHT", "FORWARD"]
+# steps = ["FORWARD", "LEFT", "FORWARD", "RIGHT", "FORWARD"]
+steps = ["FORWARD", "FORWARD"]
 current_step = 0
 intersection_detected = False
 
@@ -87,6 +88,7 @@ def connect_client(request: Request):
 
 
 def poll_websocket():
+    global started
     assert websocket != None
 
     data = websocket.receive(fail_silently=True)
@@ -147,11 +149,17 @@ def stop_motors():
 
 
 def next_step():
-    global current_step
+    global current_step, started
     current_step += 1
     if current_step + 1 == len(steps):
         started = False
         print("Done")
+        data = {
+            "action": "finished ", 
+        }
+
+        if websocket != None: 
+            websocket.send_message(json.dumps(data), fail_silently=True)
         return
 
     data = {
