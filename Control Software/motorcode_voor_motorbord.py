@@ -7,7 +7,6 @@ from analogio import AnalogIn # type: ignore
 import socketpool # type: ignore
 import wifi # type: ignore
 from adafruit_httpserver import Server, Request, Response, GET, Websocket # type: ignore
-
 import json
 
 # Initialize sensors
