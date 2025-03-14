@@ -29,6 +29,7 @@ Motor_Right = Motors.Motor(board.GP4, board.GP5)
 
 
 started = True
+time_since_next_step = time.monotonic()
 
 # Initialize robot position/heading and grid
 robot_pos = {"x": 1, "y": 1}
@@ -129,8 +130,9 @@ def stop_motors():
 
 
 def next_step():
-    global current_step, started
+    global current_step, started, time_since_next_step
     current_step += 1
+    time_since_next_step = time.monotonic()
     if current_step + 1 == len(steps):
         #started = False
         print("Done")
@@ -182,20 +184,23 @@ while True:
             if B_overline.status() and intersection_detected:
                 # A intersections was detected and now we are at the intersection -> move to next step
                 intersection_detected = False
-                #stop_motors()
+                stop_motors()
                 next_step()
 
         else:
-            # The robot is currently turning, wait until back on line before moving to next step
-            # TODO: add reference time so this doesn't trigger before the turn even started
-            if steps[current_step] == "RIGHT" and L_overline.status():
-                # If the robot is turning right, it should stop turning once the left sensor hits the black line
-                stop_motors()
-                next_step()
-            elif steps[current_step] == "LEFT" and R_overline.status():
-                # If the robot is turning left, it should stop turning once the right sensor hits the black line
-                stop_motors()
-                next_step()
+            if time_since_next_step < 0.5: 
+                print("still turning...")
+            else: 
+                # The robot is currently turning, wait until back on line before moving to next step
+                # TODO: add reference time so this doesn't trigger before the turn even started
+                if steps[current_step] == "RIGHT" and L_overline.status():
+                    # If the robot is turning right, it should stop turning once the left sensor hits the black line
+                    stop_motors()
+                    next_step()
+                elif steps[current_step] == "LEFT" and R_overline.status():
+                    # If the robot is turning left, it should stop turning once the right sensor hits the black line
+                    stop_motors()
+                    next_step()
     else:
         stop_motors()
 
