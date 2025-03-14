@@ -104,7 +104,7 @@ def move_forward(speed = 50):
     print("Forward")
 
 def turn_left(right_speed = 50):
-    Motor_Left.stop()
+    Motor_Left.run(-right_speed)
     Motor_Right.run(right_speed)
     print("Turn left")
 
@@ -114,7 +114,7 @@ def nudge_left(nudge_speed = 30):
     print("Nudge Left")
 
 def turn_right(left_speed = 50):
-    Motor_Right.stop()
+    Motor_Right.run(-left_speed)
     Motor_Left.run(left_speed)
     print("Turn right")
 
