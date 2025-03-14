@@ -188,17 +188,21 @@ while True:
                 next_step()
 
         else:
-            if time_since_next_step < 0.5: 
-                print("still turning...")
-            else: 
-                # The robot is currently turning, wait until back on line before moving to next step
-                # TODO: add reference time so this doesn't trigger before the turn even started
-                if steps[current_step] == "RIGHT" and L_overline.status():
-                    # If the robot is turning right, it should stop turning once the left sensor hits the black line
+            # if time_since_next_step < 0.5: 
+            #     print("still turning...")
+            # else: 
+            # The robot is currently turning, wait until back on line before moving to next step
+            # TODO: add reference time so this doesn't trigger before the turn even started
+            if steps[current_step] == "RIGHT":
+                # If the robot is turning right, it should stop turning once the left sensor hits the black line
+                turn_right()
+                if L_overline.status() and time_since_next_step < 0.5:
                     stop_motors()
                     next_step()
-                elif steps[current_step] == "LEFT" and R_overline.status():
-                    # If the robot is turning left, it should stop turning once the right sensor hits the black line
+            elif steps[current_step] == "LEFT" :
+                # If the robot is turning left, it should stop turning once the right sensor hits the black line
+                turn_left()
+                if R_overline.status() and time_since_next_step < 0.5:
                     stop_motors()
                     next_step()
     else:
