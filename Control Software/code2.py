@@ -14,9 +14,9 @@ from modules import Motors, Sensors
 # Initialize sensors
 # Using GP26, 27 and 28
 # Returns True of False
-L_overline = Sensors.Sensor(board.GP26, 25000)
-R_overline = Sensors.Sensor(board.GP27, 25000)
-B_overline = Sensors.Sensor(board.GP28, 25000)
+L_overline = Sensors.Sensor(board.GP26, 30000)
+R_overline = Sensors.Sensor(board.GP27, 40000)
+B_overline = Sensors.Sensor(board.GP28, 30000)
 
 # Initialize status sensor (To Be Replaced by RGB Strip)
 status_led = digitalio.DigitalInOut(board.LED)
@@ -40,30 +40,20 @@ current_step = 0
 intersection_detected = False
 
 # WiFi configuration
-SSID = "PICO-FSB-502"
+SSID = "Fast Shitbox"
 # PASSWORD = "password"  #Verander voor veiligheidsredenen, wat is veiligheid?
 PORT = 80
 
-# Initialize mDNS
-mdns_server = mdns.Server(wifi.radio)
-mdns_server.hostname = "fast-shitbox"
-mdns_server.advertise_service(service_type="_http", protocol="_tcp", port=PORT)
-print("mDNS advertised: _http._tcp, hostname='fast-shitbox'")
-
-#  set static IP address
-ipv4 = ipaddress.IPv4Address("192.168.1.42")
-netmask = ipaddress.IPv4Address("255.255.255.0")
-gateway = ipaddress.IPv4Address("192.168.1.1")
-wifi.radio.set_ipv4_address(ipv4=ipv4, netmask=netmask, gateway=gateway)
-
 wifi.radio.start_ap(ssid=SSID)
-
-# print IP adres
-print("My IP address is", wifi.radio.ipv4_address_ap)
 
 pool = socketpool.SocketPool(wifi.radio)
 server = Server(pool, "/static", debug=True)
 websocket = None
+
+# print IP adres
+print("My IP address is", wifi.radio.ipv4_address_ap)
+
+
 
 
 # called when server received new connection
@@ -107,7 +97,7 @@ def over_line(sensor):
     return sensor["pin"].value < sensor["threshold"]
 
 
-def move_forward(speed):
+def move_forward(speed = 70):
     Motor_Left.run(speed)
     Motor_Right.run(speed)
     print("Forward")
@@ -155,32 +145,32 @@ def next_step():
 
 # Main loop
 while True:
-    print(f"Sensor left: {L_overline.status}")
-    print(f"Sensor right: {R_overline.status}")
-    print(f"Sensor back: {B_overline.status}")
+    print(f"Sensor left: {L_overline.status()}")
+    print(f"Sensor right: {R_overline.status()}")
+    print(f"Sensor back: {B_overline.status()}")
 
     if started == True:
         if steps[current_step] == "FORWARD":
             # If the current step is moving forward, just follow the line until the next intersections
 
-            if not L_overline.status and not R_overline.status:
+            if not L_overline.status() and not R_overline.status():
                 # TODO: is if statement necessary?
                 move_forward()
-            if L_overline.status and R_overline.status:
+            if L_overline.status() and R_overline.status():
                 # Both sensors on line -> intersection detected
                 intersection_detected = True
                 move_forward()
-            elif L_overline.status:
+            elif L_overline.status():
                 # Left sensors on line -> robot should correct by steering left
                 turn_left()
-            elif R_overline.status:
+            elif R_overline.status():
                 # Right sensors on line -> robot should correct by steering right
                 turn_right()
             else: 
                 print("lost")
                 stop_motors()
 
-            if B_overline.status and intersection_detected:
+            if B_overline.status() and intersection_detected:
                 # A intersections was detected and now we are at the intersection -> move to next step
                 intersection_detected = False
                 stop_motors()
@@ -189,14 +179,16 @@ while True:
         else:
             # The robot is currently turning, wait until back on line before moving to next step
             # TODO: add reference time so this doesn't trigger before the turn even started
-            if steps[current_step] == "RIGHT" and L_overline.status:
+            if steps[current_step] == "RIGHT" and L_overline.status():
                 # If the robot is turning right, it should stop turning once the left sensor hits the black line
                 stop_motors()
                 next_step()
-            elif steps[current_step] == "LEFT" and R_overline.status:
+            elif steps[current_step] == "LEFT" and R_overline.status():
                 # If the robot is turning left, it should stop turning once the right sensor hits the black line
                 stop_motors()
                 next_step()
+    else:
+        stop_motors()
 
     server.poll()
 

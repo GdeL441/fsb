@@ -7,4 +7,4 @@ class Sensor:
         self.threshold = threshold
 
     def status(self): # Speed -100 tot 100
-        return self.value < self.threshold
+        return self.pin.value < self.threshold

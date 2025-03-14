@@ -110,12 +110,12 @@ window.addEventListener("DOMContentLoaded", () => {
   startMotorBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     if (!ws) return
-    ws.send(JSON.stringify({ action: "start_motor", speed: 100, direction: "forward" }))
+    ws.send(JSON.stringify({ action: "start", speed: 100, direction: "forward" }))
   });
   stopMotorBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     if (!ws) return
-    ws.send(JSON.stringify({ action: "stop_motor" }))
+    ws.send(JSON.stringify({ action: "stop" }))
   });
   speedInput.oninput = function() {
     if (!ws) return
