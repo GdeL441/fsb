@@ -28,7 +28,7 @@ Motor_Left = Motors.Motor(board.GP2, board.GP3)
 Motor_Right = Motors.Motor(board.GP4, board.GP5)
 
 
-started = True
+started = False
 time_since_next_step = time.monotonic()
 
 # Initialize robot position/heading and grid
