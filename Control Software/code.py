@@ -29,6 +29,7 @@ Motor_Right = Motors.Motor(board.GP4, board.GP5)
 
 
 started = False
+# Keep track of the time since next_step called, this will help when turning
 time_since_next_step = time.monotonic()
 
 # Initialize robot position/heading and grid
@@ -73,7 +74,7 @@ def connect_client(request: Request):
 
 
 def poll_websocket():
-    global started
+    global started, websocket
     assert websocket != None
 
     data = websocket.receive(fail_silently=True)
@@ -130,12 +131,14 @@ def stop_motors():
 
 
 def next_step():
-    global current_step, started, time_since_next_step
+    global current_step, started, time_since_next_step, intersection_detected
     current_step += 1
     time_since_next_step = time.monotonic()
     if current_step + 1 == len(steps):
-        #started = False
-        print("Done")
+        started = False
+        current_step = 0 
+        intersection_detected = False
+        print("Done, reset")
         data = {
             "action": "finished ", 
         }
@@ -196,13 +199,13 @@ while True:
             if steps[current_step] == "RIGHT":
                 # If the robot is turning right, it should stop turning once the left sensor hits the black line
                 turn_right()
-                if L_overline.status() and time_since_next_step < 0.5:
+                if L_overline.status() and time.monotonic() - time_since_next_step > 0.5:
                     stop_motors()
                     next_step()
             elif steps[current_step] == "LEFT" :
                 # If the robot is turning left, it should stop turning once the right sensor hits the black line
                 turn_left()
-                if R_overline.status() and time_since_next_step < 0.5:
+                if R_overline.status() and time.monotonic() - time_since_next_step > 0.5:
                     stop_motors()
                     next_step()
     else:
