@@ -9,7 +9,7 @@ import socketpool # type: ignore
 import wifi # type: ignore
 from adafruit_httpserver import Server, Request, Response, GET, Websocket # type: ignore
 import mdns # type: ignore
-from modules import Motors, Sensors, Ultrasonic
+from modules import Motors, Sensors, Ultrasonic, Statusled
 
 # Initialize sensors
 # Using GP26, 27 and 28
@@ -19,8 +19,7 @@ R_overline = Sensors.Sensor(board.GP27, 45000)
 B_overline = Sensors.Sensor(board.GP28, 30000)
 
 # Initialize status sensor (To Be Replaced by RGB Strip)
-status_led = digitalio.DigitalInOut(board.LED)
-status_led.direction = digitalio.Direction.OUTPUT
+status_led = Statusled.Statusled(board.GP6, board.GP7, board.GP8, board.GP9)
 
 # Initaliaze Motors
 Motor_Left = Motors.Motor(board.GP2, board.GP3)
@@ -63,7 +62,7 @@ Ki = 0.01  # Integral gain (adjust for minor drifting correction)
 Kd = 0.2  # Derivative gain (reduces overshoot)
 
 # Base Speed (PWM Duty Cycle, max 65535)
-BASE_SPEED = 30000  
+BASE_SPEED = 50000  
 
 # Integral & Derivative Terms
 error_sum = 0
@@ -223,6 +222,7 @@ while True:
             reset_state()
 
         elif steps[current_step] == "FORWARD":
+            status_led.next_object()
             # If the current step is moving forward, just follow the line until the next intersections
             if L_overline.status() and R_overline.status():
                 # Both sensors on line -> intersection detected

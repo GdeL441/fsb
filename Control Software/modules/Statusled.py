@@ -5,10 +5,10 @@ import time
 
 class Statusled:
     def __init__(self, red_pin, green_pin, blue_pin, white_pin):
-        self.red = pwmio.PWMOUT(red_pin, frequency=1000)
-        self.green = pwmio.PWMOUT(green_pin, frequency=1000)
-        self.blue = pwmio.PWMOUT(blue_pin, frequency=1000)
-        self.white = pwmio.PWMOUT(white_pin, frequency=1000)
+        self.red = pwmio.PWMOut(red_pin, frequency=1000)
+        self.green = pwmio.PWMOut(green_pin, frequency=1000)
+        self.blue = pwmio.PWMOut(blue_pin, frequency=1000)
+        self.white = pwmio.PWMOut(white_pin, frequency=1000)
 
     def turn_off(self):
         self.red.duty_cycle = 0
