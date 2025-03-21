@@ -38,7 +38,6 @@ robot_pos = {"x": 1, "y": 1}
 robot_heading = "N"  # "N" "E" "S" "W"
 
 # Steps the robot should take, later this should be computed at runtime(grid backtracking)
-# steps = ["FORWARD", "LEFT", "FORWARD", "RIGHT", "FORWARD"]
 steps = ["FORWARD", "FORWARD", "LEFT", "FORWARD", "LEFT", "FORWARD", "LEFT", "FORWARD", "RIGHT"]
 current_step = 0
 intersection_detected = False
@@ -58,7 +57,7 @@ websocket = None
 print("My IP address is", wifi.radio.ipv4_address_ap)
 
 
-# PID Constants (Tune these)
+# PID Constants 
 Kp = 1.5  # Proportional gain (adjust for faster/slower correction)
 Ki = 0.01  # Integral gain (adjust for minor drifting correction)
 Kd = 0.2  # Derivative gain (reduces overshoot)
@@ -214,9 +213,9 @@ def duty_cycle_to_speed(duty_cycle):
 
 # Main loop
 while True:
-    #print(f"Sensor left: {L_overline.status()}")
-    #print(f"Sensor right: {R_overline.status()}")
-    #print(f"Sensor back: {B_overline.status()}")
+    # print(f"Sensor left: {L_overline.status()}")
+    # print(f"Sensor right: {R_overline.status()}")
+    # print(f"Sensor back: {B_overline.status()}")
 
     if started == True:
         if collision.detect():
@@ -261,15 +260,14 @@ while True:
 
         else:
             # The robot is currently turning, wait until back on line before moving to next step
-            # TODO: add reference time so this doesn't trigger before the turn even started
             if steps[current_step] == "RIGHT":
-                # If the robot is turning right, it should stop turning once the left sensor hits the black line
+                # If the robot is turning right, it should stop turning once the right(TODO: left?) sensor hits the black line
                 turn_right()
                 if R_overline.status() and time.monotonic() - time_since_next_step > 0.5:
                     stop_motors()
                     next_step()
             elif steps[current_step] == "LEFT" :
-                # If the robot is turning left, it should stop turning once the right sensor hits the black line
+                # If the robot is turning left, it should stop turning once the left(TODO: right?) sensor hits the black line
                 turn_left()
                 if L_overline.status() and time.monotonic() - time_since_next_step > 0.5:
                     stop_motors()

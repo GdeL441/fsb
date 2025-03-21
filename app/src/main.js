@@ -74,6 +74,47 @@ async function scan() {
   };
 }
 
+let timer;
+let milliseconds = 0;
+let isRunning = false;
+
+function formatTime(ms) {
+  let mins = Math.floor(ms / 60000);
+  let secs = Math.floor((ms % 60000) / 1000);
+  let millis = ms % 1000;
+  return (
+    String(mins).padStart(2, '0') + " : " +
+    String(secs).padStart(2, '0') + " : " +
+    String(millis).padStart(2, '0')
+  );
+}
+
+function updateDisplay() {
+  document.getElementById('timer').textContent = formatTime(milliseconds);
+}
+
+function startTimer() {
+  if (!isRunning) {
+    isRunning = true;
+    let startTime = Date.now() - milliseconds;
+    timer = setInterval(() => {
+      milliseconds = Date.now() - startTime;
+      updateDisplay();
+    }, 10);
+  }
+}
+
+function stopTimer() {
+  clearInterval(timer);
+  isRunning = false;
+}
+
+function resetTimer() {
+  stopTimer();
+  milliseconds = 0;
+  updateDisplay();
+}
+
 let ssids
 let loading
 let ipInput
@@ -131,16 +172,20 @@ window.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "start" }))
+    startTimer()
   });
   stopBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "stop" }))
+    stopTimer()
   });
   resetBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "reset" }))
+    stopTimer()
+    resetTimer()
   });
 
   speedInput.oninput = function() {
