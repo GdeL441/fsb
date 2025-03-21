@@ -21,6 +21,8 @@ async function connectWs(url) {
     console.log(data)
     if (data.action == "next_step") {
       console.log(data.step)
+    } else if (data.action == "position_updated") {
+      console.log("heading", data.heading, "position", data.position)
     } else if (data.action == "finished") {
       console.log("Finished")
     }

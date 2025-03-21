@@ -137,11 +137,49 @@ def stop_motors():
     Motor_Left.stop()
 
 
+def update_pos_and_heading():
+    global robot_pos, robot_heading
+
+    if steps[current_step] == "FORWARD":
+        # Move forward based on the current heading
+        if robot_heading == "N":
+            robot_pos["y"] -= 1
+        elif robot_heading == "S":
+            robot_pos["y"] += 1
+        elif robot_heading == "E":
+            robot_pos["x"] += 1
+        elif robot_heading == "W":
+            robot_pos["x"] -= 1
+
+    elif steps[current_step] == "RIGHT":
+        # Turn 90 degrees to the right (clockwise)
+        directions = ["N", "E", "S", "W"]
+        robot_heading = directions[(directions.index(robot_heading) + 1) % 4]
+
+    elif steps[current_step] == "LEFT":
+        # Turn 90 degrees to the left (counterclockwise)
+        directions = ["N", "E", "S", "W"]
+        robot_heading = directions[(directions.index(robot_heading) - 1) % 4]
+
+    data = {
+        "action": "position_updated",
+        "position": robot_pos,
+        "heading": robot_heading
+    }
+
+    if websocket != None: 
+        websocket.send_message(json.dumps(data), fail_silently=True)
 
 def next_step():
     global current_step, started, time_since_next_step, intersection_detected
+
+    update_pos_and_heading()
+
     current_step += 1
     time_since_next_step = time.monotonic()
+
+
+    # Completed parcours
     if current_step == len(steps):
         started = False
         current_step = 0 
