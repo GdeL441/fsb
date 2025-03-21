@@ -9,13 +9,13 @@ import socketpool # type: ignore
 import wifi # type: ignore
 from adafruit_httpserver import Server, Request, Response, GET, Websocket # type: ignore
 import mdns # type: ignore
-from modules import Motors, Sensors
+from modules import Motors, Sensors, Ultrasonic
 
 # Initialize sensors
 # Using GP26, 27 and 28
 # Returns True of False
-L_overline = Sensors.Sensor(board.GP26, 30000)
-R_overline = Sensors.Sensor(board.GP27, 40000)
+L_overline = Sensors.Sensor(board.GP26, 40000)
+R_overline = Sensors.Sensor(board.GP27, 45000)
 B_overline = Sensors.Sensor(board.GP28, 30000)
 
 # Initialize status sensor (To Be Replaced by RGB Strip)
@@ -25,6 +25,9 @@ status_led.direction = digitalio.Direction.OUTPUT
 # Initaliaze Motors
 Motor_Left = Motors.Motor(board.GP2, board.GP3)
 Motor_Right = Motors.Motor(board.GP4, board.GP5)
+
+# Initialize Ultrasonic, in cm
+collision = Ultrasonic.Collision(5)
 
 started = False
 # Keep track of the time since next_step called, this will help when turning
@@ -36,7 +39,7 @@ robot_heading = "N"  # "N" "E" "S" "W"
 
 # Steps the robot should take, later this should be computed at runtime(grid backtracking)
 # steps = ["FORWARD", "LEFT", "FORWARD", "RIGHT", "FORWARD"]
-steps = ["FORWARD", "FORWARD", "LEFT"]
+steps = ["FORWARD", "FORWARD", "LEFT", "FORWARD", "LEFT", "FORWARD", "LEFT", "FORWARD", "RIGHT"]
 current_step = 0
 intersection_detected = False
 
@@ -118,28 +121,28 @@ def move_forward(speed = 70):
     print("Forward")
 
 def turn_left(right_speed = 50):
-    Motor_Left.stop()
-    Motor_Right.speed(right_speed)
+    Motor_Left.run(-right_speed)
+    Motor_Right.run(right_speed)
     print("Turn left")
 
 
 def turn_right(left_speed = 50):
-    Motor_Right.stop()
-    Motor_Left.speed(left_speed)
-    print("Turn left")
+    Motor_Right.run(-left_speed)
+    Motor_Left.run(left_speed)
+    print("Turn right")
 
 
 def stop_motors():
+    Motor_Right.stop()
     Motor_Left.stop()
-    Motor_Left.stop()
-    print("Stop")
+
 
 
 def next_step():
     global current_step, started, time_since_next_step, intersection_detected
     current_step += 1
     time_since_next_step = time.monotonic()
-    if current_step + 1 == len(steps):
+    if current_step == len(steps):
         started = False
         current_step = 0 
         intersection_detected = False
@@ -169,42 +172,36 @@ def duty_cycle_to_speed(duty_cycle):
 
 # Main loop
 while True:
-    print(f"Sensor left: {L_overline.status()}")
-    print(f"Sensor right: {R_overline.status()}")
-    print(f"Sensor back: {B_overline.status()}")
+    #print(f"Sensor left: {L_overline.status()}")
+    #print(f"Sensor right: {R_overline.status()}")
+    #print(f"Sensor back: {B_overline.status()}")
 
     if started == True:
-        if steps[current_step] == "FORWARD":
-            # If the current step is moving forward, just follow the line until the next intersections
+        if collision.detect():
+            started = False
+            stop_motors()
+            current_step = 0
+            error_sum = 0
+            last_error = 0
+            print("Collision Detected!")
 
-            if not L_overline.status() and not R_overline.status():
-                # TODO: is if statement necessary?
-                # move_forward()
-                print("keep going straight")
+        elif steps[current_step] == "FORWARD":
+            # If the current step is moving forward, just follow the line until the next intersections
             if L_overline.status() and R_overline.status():
                 # Both sensors on line -> intersection detected
                 intersection_detected = True
+                print("Front over intersection")
                 #move_forward()
-            elif L_overline.status():
-                # Left sensors on line -> robot should correct by steering left
-                # turn_left()
-                print("")
-            elif R_overline.status():
-                # Right sensors on line -> robot should correct by steering right
-                print("")
-                # turn_right()
-            else: 
-                print("lost")
-                stop_motors()
 
-            if B_overline.status() and intersection_detected:
+            if B_overline.status() and intersection_detected == True:
                 # A intersections was detected and now we are at the intersection -> move to next step
-                intersection_detected = False
+                print("Whole car over intersection!")
                 stop_motors()
+                time.sleep(0.5)
                 next_step()
             else: 
                 print("Just follow line with PID-controller")
-                error = (L_overline.value() - R_overline.value) / 65535.0  # Normalize between -1 and 1
+                error = (L_overline.value() - R_overline.value()) / 65535.0  # Normalize between -1 and 1
                 error_sum += error  # Integral term
                 error_derivative = error - last_error  # Derivative term
                 last_error = error  # Save error for next loop
@@ -217,11 +214,11 @@ while True:
                 correction = (Kp * error) + (Ki * error_sum) + (Kd * error_derivative)
 
                 # Adjust motor speeds
-                left_speed = int(BASE_SPEED - (correction * BASE_SPEED))
-                right_speed = int(BASE_SPEED + (correction * BASE_SPEED))
-
-                Motor_Left.speed(duty_cycle_to_speed(left_speed))
-                Motor_Right.speed(duty_cycle_to_speed(right_speed))
+                left_speed = int(BASE_SPEED + (correction * BASE_SPEED))
+                right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
+                #print(f"Left speed {left_speed} Right speed {right_speed}")
+                Motor_Left.run(duty_cycle_to_speed(left_speed))
+                Motor_Right.run(duty_cycle_to_speed(right_speed))
 
 
         else:
@@ -230,13 +227,13 @@ while True:
             if steps[current_step] == "RIGHT":
                 # If the robot is turning right, it should stop turning once the left sensor hits the black line
                 turn_right()
-                if L_overline.status() and time.monotonic() - time_since_next_step > 0.5:
+                if R_overline.status() and time.monotonic() - time_since_next_step > 0.5:
                     stop_motors()
                     next_step()
             elif steps[current_step] == "LEFT" :
                 # If the robot is turning left, it should stop turning once the right sensor hits the black line
                 turn_left()
-                if R_overline.status() and time.monotonic() - time_since_next_step > 0.5:
+                if L_overline.status() and time.monotonic() - time_since_next_step > 0.5:
                     stop_motors()
                     next_step()
 
@@ -248,6 +245,6 @@ while True:
     if websocket is not None:
         poll_websocket()
 
-    time.sleep(0.5)
+    time.sleep(0.05)
 
 

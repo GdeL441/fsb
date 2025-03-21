@@ -9,7 +9,6 @@ class Motor:
         self.direction.direction = digitalio.Direction.OUTPUT
 
     def run(self, speed): # Speed -100 tot 100
-        print(speed)
         if -100 <= speed < 0:
             self.direction.value = True
             duty_cycle = speed_to_duty_cycle(speed)
