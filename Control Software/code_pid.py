@@ -62,7 +62,7 @@ Ki = 0.01  # Integral gain (adjust for minor drifting correction)
 Kd = 0.2  # Derivative gain (reduces overshoot)
 
 # Base Speed (PWM Duty Cycle, max 65535)
-BASE_SPEED = 50000  
+BASE_SPEED = 30000  
 
 # Integral & Derivative Terms
 error_sum = 0
@@ -281,6 +281,6 @@ while True:
     if websocket is not None:
         poll_websocket()
 
-    time.sleep(0.05)
+    time.sleep(0.01)
 
 
