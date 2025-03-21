@@ -83,6 +83,12 @@ window.addEventListener("DOMContentLoaded", () => {
   const speedInput = document.querySelector("#speed");
   const disconnectBtn = document.querySelector("#disconnect-btn");
   const stopMotorBtn = document.querySelector("#stop-motor");
+
+  const startBtn = document.querySelector("#start");
+  const stopBtn = document.querySelector("#stop");
+  const resetBtn = document.querySelector("#reset");
+
+
   ssids = document.querySelector("#wifi-ssids")
   ipInput = document.querySelector("#ip-input")
 
@@ -118,6 +124,23 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!ws) return
     ws.send(JSON.stringify({ action: "stop" }))
   });
+
+  startBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!ws) return
+    ws.send(JSON.stringify({ action: "start" }))
+  });
+  stopBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!ws) return
+    ws.send(JSON.stringify({ action: "stop" }))
+  });
+  resetBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!ws) return
+    ws.send(JSON.stringify({ action: "reset" }))
+  });
+
   speedInput.oninput = function() {
     if (!ws) return
     if (this.value > 0) {

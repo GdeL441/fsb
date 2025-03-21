@@ -84,7 +84,7 @@ def connect_client(request: Request):
 
 
 def poll_websocket():
-    global started
+    global started, current_step, error_sum, last_error
     assert websocket != None
 
     data = websocket.receive(fail_silently=True)
@@ -95,6 +95,12 @@ def poll_websocket():
             started = True
         elif data["action"] == "stop":
             started = False
+        elif data["action"] == "reset":
+            started = False
+            stop_motors()
+            current_step = 0
+            error_sum = 0
+            last_error = 0
         elif data["action"] == "move":
             print(data["speedL"], data["speedR"])
         else:
@@ -104,10 +110,6 @@ def poll_websocket():
 
 server.start(port=PORT)
 print("Server started, open for websocket connection")
-
-
-def over_line(sensor):
-    return sensor["pin"].value < sensor["threshold"]
 
 
 def move_forward(speed = 70):
@@ -183,15 +185,17 @@ while True:
                 # Both sensors on line -> intersection detected
                 intersection_detected = True
                 #move_forward()
-            # elif L_overline.status():
-            #     # Left sensors on line -> robot should correct by steering left
-            #     turn_left()
-            # elif R_overline.status():
-            #     # Right sensors on line -> robot should correct by steering right
-            #     turn_right()
-            # else: 
-            #     print("lost")
-            #     stop_motors()
+            elif L_overline.status():
+                # Left sensors on line -> robot should correct by steering left
+                # turn_left()
+                print("")
+            elif R_overline.status():
+                # Right sensors on line -> robot should correct by steering right
+                print("")
+                # turn_right()
+            else: 
+                print("lost")
+                stop_motors()
 
             if B_overline.status() and intersection_detected:
                 # A intersections was detected and now we are at the intersection -> move to next step
