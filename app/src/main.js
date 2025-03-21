@@ -18,7 +18,7 @@ async function connectWs(url) {
   };
   ws.onmessage = event => {
     const data = JSON.parse(event.data)
-    console.log(data)
+    console.log("data received from websocket", data)
     if (data.action == "next_step") {
       console.log(data.step)
     } else if (data.action == "position_updated") {
@@ -63,7 +63,7 @@ async function scan() {
     span.innerText = `${ssid}`
     button.innerText = "Connect"
     button.addEventListener("click", async () => {
-      const _wsUrl = await invoke("connect", { ssid })
+      // const _wsUrl = await invoke("connect", { ssid })
       const wsUrl = `ws://${ipInput.value}/ws`
       console.log("connected to wifi", wsUrl)
       if (wsUrl) connectWs(wsUrl)

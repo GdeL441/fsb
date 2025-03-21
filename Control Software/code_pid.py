@@ -99,11 +99,7 @@ def poll_websocket():
         elif data["action"] == "stop":
             started = False
         elif data["action"] == "reset":
-            started = False
-            stop_motors()
-            current_step = 0
-            error_sum = 0
-            last_error = 0
+            reset_state()
         elif data["action"] == "move":
             print(data["speedL"], data["speedR"])
         else:
@@ -114,6 +110,14 @@ def poll_websocket():
 server.start(port=PORT)
 print("Server started, open for websocket connection")
 
+def reset_state(): 
+    global started, current_step, error_sum, last_error
+    print("Reset state")
+    started = False
+    stop_motors()
+    current_step = 0
+    error_sum = 0
+    last_error = 0
 
 def move_forward(speed = 70):
     Motor_Left.run(speed)
@@ -216,12 +220,8 @@ while True:
 
     if started == True:
         if collision.detect():
-            started = False
-            stop_motors()
-            current_step = 0
-            error_sum = 0
-            last_error = 0
             print("Collision Detected!")
+            reset_state()
 
         elif steps[current_step] == "FORWARD":
             # If the current step is moving forward, just follow the line until the next intersections
