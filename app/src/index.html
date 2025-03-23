@@ -14,10 +14,11 @@
     <main class="container">
       <h1 class="header">Fast Shitbox Telemetry Interface</h1>
       <span id="status"></span>
-      <div id="dashboard" class="">
+      <div id="dashboard" class="hide">
         <button id="start">Start</button>
         <button id="stop">Stop</button>
         <button id="reset">Reset</button>
+        <button id="disconnect-btn">Disconnect</button>
         
         <div>
           <div class="timer">
@@ -36,7 +37,6 @@
 
         <div class="control-motors">
           <h2>Control motors</h2>
-          <button id="disconnect-btn">Disconnect</button>
           <button id="start-motor">Start motor</button>
           <button id="stop-motor">Stop motor</button>
           <input type="range" min="-100" max="100" value="0" id="speed">
