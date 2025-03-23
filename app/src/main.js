@@ -21,12 +21,20 @@ async function connectWs(url) {
     console.log("data received from websocket", data)
     if (data.action == "next_step") {
       console.log(data.step)
+      step.textContent = `Current step: ${data.step}`
     } else if (data.action == "position_updated") {
+
+      position.textContent = JSON.stringify(data.position)
+      heading.textContent = `Heading: ${data.heading}`
       console.log("heading", data.heading, "position", data.position)
     } else if (data.action == "finished") {
       console.log("Finished")
       stopTimer()
+    } else if (data.action == "sensor_values") {
+      console.log("Sensor values", data)
+      sensors.textContent = `Left: ${data.L}, Right: ${data.R}, Back: ${data.B}`
     }
+
   };
   ws.onerror = error => {
     console.error(error)
@@ -115,17 +123,16 @@ function resetTimer() {
   updateDisplay();
 }
 
-let ssids
-let loading
-let ipInput
+let ssids, loading, ipInput, position, heading, step, sensors
 
 window.addEventListener("DOMContentLoaded", () => {
-  const btn = document.querySelector("#scan-btn");
+  const scanBtn = document.querySelector("#scan-btn");
   const connectBtn = document.querySelector("#connect-btn");
   const startMotorBtn = document.querySelector("#start-motor");
   const speedInput = document.querySelector("#speed");
   const disconnectBtn = document.querySelector("#disconnect-btn");
   const stopMotorBtn = document.querySelector("#stop-motor");
+  const sensorsBtn = document.querySelector("#sensors-btn");
 
   const startBtn = document.querySelector("#start");
   const stopBtn = document.querySelector("#stop");
@@ -134,11 +141,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
   ssids = document.querySelector("#wifi-ssids")
   ipInput = document.querySelector("#ip-input")
+  position = document.querySelector("#position")
+  heading = document.querySelector("#heading")
+  step = document.querySelector("#step")
+  sensors = document.querySelector("#sensors")
 
   loading = document.querySelector("#loading")
   loading.style.display = "none"
 
-  btn.addEventListener("click", (e) => {
+  scanBtn.addEventListener("click", (e) => {
     e.preventDefault();
     scan();
   });
@@ -157,15 +168,16 @@ window.addEventListener("DOMContentLoaded", () => {
     ws = null
     showConnectView()
   });
+
   startMotorBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     if (!ws) return
-    ws.send(JSON.stringify({ action: "start", speed: 100, direction: "forward" }))
+    ws.send(JSON.stringify({ action: "move", speedL: 100, speedR: 100 }))
   });
   stopMotorBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     if (!ws) return
-    ws.send(JSON.stringify({ action: "stop" }))
+    ws.send(JSON.stringify({ action: "move", speedL: 0, speedR: 0 }))
   });
 
   startBtn.addEventListener("click", async (e) => {
@@ -174,12 +186,14 @@ window.addEventListener("DOMContentLoaded", () => {
     ws.send(JSON.stringify({ action: "start" }))
     startTimer()
   });
+
   stopBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "stop" }))
     stopTimer()
   });
+
   resetBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     if (!ws) return
@@ -188,12 +202,19 @@ window.addEventListener("DOMContentLoaded", () => {
     resetTimer()
   });
 
+  sensorsBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!ws) return
+    ws.send(JSON.stringify({ action: "monitor_sensor" }))
+  });
+
   speedInput.oninput = function() {
     if (!ws) return
-    if (this.value > 0) {
-      ws.send(JSON.stringify({ action: "start_motor", speed: this.value, direction: "forward" }))
-    } else {
-      ws.send(JSON.stringify({ action: "start_motor", speed: Math.abs(this.value), direction: "backward" }))
-    }
+    ws.send(JSON.stringify({ action: "move", speedL: this.value, speedR: this.value }))
+    // if (this.value > 0) {
+    //   ws.send(JSON.stringify({ action: "start_motor", speed: this.value, direction: "forward" }))
+    // } else {
+    //   ws.send(JSON.stringify({ action: "start_motor", speed: Math.abs(this.value), direction: "backward" }))
+    // }
   }
 });

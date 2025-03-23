@@ -1,7 +1,4 @@
 import time
-
-# import pwmio # type: ignore
-# import ipaddress
 import json
 import board  # type: ignore
 import digitalio  # type: ignore
@@ -9,9 +6,11 @@ from analogio import AnalogIn  # type: ignore
 import socketpool  # type: ignore
 import wifi  # type: ignore
 from adafruit_httpserver import Server, Request, Response, GET, Websocket  # type: ignore
+from modules import Motors, Sensors, Ultrasonic
 
 # import mdns # type: ignore
-from modules import Motors, Sensors, Ultrasonic
+# import pwmio # type: ignore
+# import ipaddress
 
 # Initialize sensors
 # Using GP26, 27 and 28
@@ -36,8 +35,12 @@ started = False
 # Keep track of the time since next_step called, this will help when turning
 time_since_next_step = time.monotonic()
 
+# is the frontend currently monitoring the sensor values
+MONITORING_SENSOR = False
+
 # Initialize robot position/heading and grid
 robot_pos = {"x": 1, "y": 1}
+DIRECTIONS = ["N", "E", "S", "W"]
 robot_heading = "N"  # "N" "E" "S" "W"
 
 # Steps the robot should take, later this should be computed at runtime(grid backtracking)
@@ -100,7 +103,7 @@ def connect_client(request: Request):
 
 # If there is a connected websocket connection, check if there is a new incoming message
 def poll_websocket():
-    global started, current_step, error_sum, last_error
+    global started, current_step, error_sum, last_error, MONITORING_SENSOR
     assert websocket != None
 
     data = websocket.receive(fail_silently=True)
@@ -113,6 +116,8 @@ def poll_websocket():
             started = False
         elif data["action"] == "reset":
             reset_state()
+        elif data["action"] == "monitor_sensor":
+            MONITORING_SENSOR = not MONITORING_SENSOR
         # TODO
         elif data["action"] == "move":
             print(data["speedL"], data["speedR"])
@@ -141,6 +146,10 @@ def turn_left(right_speed=50):
     Motor_Left.run(-right_speed)
     Motor_Right.run(right_speed)
     print("Turn left")
+
+
+
+
 
 
 def turn_right(left_speed=50):
@@ -172,13 +181,11 @@ def update_pos_and_heading():
 
     elif steps[current_step] == "RIGHT":
         # Turn 90 degrees to the right (clockwise)
-        directions = ["N", "E", "S", "W"]
-        robot_heading = directions[(directions.index(robot_heading) + 1) % 4]
+        robot_heading = DIRECTIONS[(DIRECTIONS.index(robot_heading) + 1) % 4]
 
     elif steps[current_step] == "LEFT":
         # Turn 90 degrees to the left (counterclockwise)
-        directions = ["N", "E", "S", "W"]
-        robot_heading = directions[(directions.index(robot_heading) - 1) % 4]
+        robot_heading = DIRECTIONS[(DIRECTIONS.index(robot_heading) - 1) % 4]
 
     data = {
         "action": "position_updated",
@@ -221,6 +228,12 @@ def duty_cycle_to_speed(duty_cycle):
     speed = (duty_cycle * 100) / 65535  # Convert duty cycle back to percentage
     return speed
 
+def send_sensor_values():
+    if websocket == None:
+        return
+
+    data = {"action": "sensor_values", "L": L_overline.value(), "R": R_overline.value(), "B": B_overline.value()}
+    websocket.send_message(json.dumps(data), fail_silently=True)
 
 # Main loop
 while True:
@@ -293,6 +306,10 @@ while True:
                     next_step()
 
     else:
+
+        if MONITORING_SENSOR: 
+            send_sensor_values()
+
         stop_motors()
 
     server.poll()
