@@ -1,25 +1,28 @@
 import time
-import pwmio # type: ignore
-import ipaddress
+
+# import pwmio # type: ignore
+# import ipaddress
 import json
-import board # type: ignore
-import digitalio # type: ignore
-from analogio import AnalogIn # type: ignore
-import socketpool # type: ignore
-import wifi # type: ignore
-from adafruit_httpserver import Server, Request, Response, GET, Websocket # type: ignore
-import mdns # type: ignore
-from modules import Motors, Sensors, Ultrasonic, Statusled
+import board  # type: ignore
+import digitalio  # type: ignore
+from analogio import AnalogIn  # type: ignore
+import socketpool  # type: ignore
+import wifi  # type: ignore
+from adafruit_httpserver import Server, Request, Response, GET, Websocket  # type: ignore
+
+# import mdns # type: ignore
+from modules import Motors, Sensors, Ultrasonic
 
 # Initialize sensors
 # Using GP26, 27 and 28
-# Returns True of False
+# 'Sensor.status()' returns True of False based on threshold
 L_overline = Sensors.Sensor(board.GP26, 40000)
 R_overline = Sensors.Sensor(board.GP27, 45000)
 B_overline = Sensors.Sensor(board.GP28, 30000)
 
 # Initialize status sensor (To Be Replaced by RGB Strip)
-status_led = Statusled.Statusled(board.GP6, board.GP7, board.GP8, board.GP9)
+status_led = digitalio.DigitalInOut(board.LED)
+status_led.direction = digitalio.Direction.OUTPUT
 
 # Initaliaze Motors
 Motor_Left = Motors.Motor(board.GP2, board.GP3)
@@ -28,6 +31,7 @@ Motor_Right = Motors.Motor(board.GP4, board.GP5)
 # Initialize Ultrasonic, in cm
 collision = Ultrasonic.Collision(5)
 
+# Is the timer currently running, should the car continue making progres on the steps
 started = False
 # Keep track of the time since next_step called, this will help when turning
 time_since_next_step = time.monotonic()
@@ -37,13 +41,25 @@ robot_pos = {"x": 1, "y": 1}
 robot_heading = "N"  # "N" "E" "S" "W"
 
 # Steps the robot should take, later this should be computed at runtime(grid backtracking)
-steps = ["FORWARD", "FORWARD", "LEFT", "FORWARD", "LEFT", "FORWARD", "LEFT", "FORWARD", "RIGHT"]
+steps = [
+    "FORWARD",
+    "FORWARD",
+    "LEFT",
+    "FORWARD",
+    "LEFT",
+    "FORWARD",
+    "LEFT",
+    "FORWARD",
+    "RIGHT",
+]
 current_step = 0
+# This is required because when the front sensors detect the intersection,
+# the car should keep driving until the inteserction is reached
 intersection_detected = False
 
 # WiFi configuration
 SSID = "Fast Shitbox"
-# PASSWORD = "password"  #Verander voor veiligheidsredenen
+# PASSWORD = "password"
 PORT = 80
 
 wifi.radio.start_ap(ssid=SSID)
@@ -55,19 +71,17 @@ websocket = None
 # print IP adres
 print("My IP address is", wifi.radio.ipv4_address_ap)
 
-
-# PID Constants 
+# PID Constants
 Kp = 1.5  # Proportional gain (adjust for faster/slower correction)
 Ki = 0.01  # Integral gain (adjust for minor drifting correction)
 Kd = 0.2  # Derivative gain (reduces overshoot)
 
 # Base Speed (PWM Duty Cycle, max 65535)
-BASE_SPEED = 30000  
+BASE_SPEED = 30000
 
 # Integral & Derivative Terms
 error_sum = 0
 last_error = 0
-
 
 
 # called when server received new connection
@@ -84,6 +98,7 @@ def connect_client(request: Request):
     return websocket
 
 
+# If there is a connected websocket connection, check if there is a new incoming message
 def poll_websocket():
     global started, current_step, error_sum, last_error
     assert websocket != None
@@ -98,37 +113,37 @@ def poll_websocket():
             started = False
         elif data["action"] == "reset":
             reset_state()
+        # TODO
         elif data["action"] == "move":
             print(data["speedL"], data["speedR"])
         else:
             print("Received other data: ", data)
-        
 
 
 server.start(port=PORT)
 print("Server started, open for websocket connection")
 
-def reset_state(): 
-    global started, current_step, error_sum, last_error
+
+# Reset the cars state, this will be triggered either by the frontend or
+# when the car ran into a wall
+def reset_state():
+    global started, current_step, error_sum, last_error, intersection_detected
     print("Reset state")
     started = False
     stop_motors()
     current_step = 0
     error_sum = 0
     last_error = 0
+    intersection_detected = False
 
-def move_forward(speed = 70):
-    Motor_Left.run(speed)
-    Motor_Right.run(speed)
-    print("Forward")
 
-def turn_left(right_speed = 50):
+def turn_left(right_speed=50):
     Motor_Left.run(-right_speed)
     Motor_Right.run(right_speed)
     print("Turn left")
 
 
-def turn_right(left_speed = 50):
+def turn_right(left_speed=50):
     Motor_Right.run(-left_speed)
     Motor_Left.run(left_speed)
     print("Turn right")
@@ -139,6 +154,8 @@ def stop_motors():
     Motor_Left.stop()
 
 
+# whenever the car advances on the grid, update its position and heading for monitoring
+# on the frontend
 def update_pos_and_heading():
     global robot_pos, robot_heading
 
@@ -166,12 +183,14 @@ def update_pos_and_heading():
     data = {
         "action": "position_updated",
         "position": robot_pos,
-        "heading": robot_heading
+        "heading": robot_heading,
     }
 
-    if websocket != None: 
+    if websocket != None:
         websocket.send_message(json.dumps(data), fail_silently=True)
 
+
+# The car should advance to the next stap defined in the global path
 def next_step():
     global current_step, started, time_since_next_step, intersection_detected
 
@@ -180,34 +199,27 @@ def next_step():
     current_step += 1
     time_since_next_step = time.monotonic()
 
-
     # Completed parcours
     if current_step == len(steps):
-        started = False
-        current_step = 0 
-        intersection_detected = False
         print("Done, reset")
+        reset_state()
         data = {
-            "action": "finished ", 
+            "action": "finished ",
         }
 
-        if websocket != None: 
+        if websocket != None:
             websocket.send_message(json.dumps(data), fail_silently=True)
         return
 
-    data = {
-     "action": "next_step", 
-     "step": steps[current_step] 
-    }
+    data = {"action": "next_step", "step": steps[current_step]}
 
-    if websocket != None: 
+    if websocket != None:
         websocket.send_message(json.dumps(data), fail_silently=True)
 
 
 def duty_cycle_to_speed(duty_cycle):
     speed = (duty_cycle * 100) / 65535  # Convert duty cycle back to percentage
     return speed
-
 
 
 # Main loop
@@ -218,27 +230,27 @@ while True:
 
     if started == True:
         if collision.detect():
-            print("Collision Detected!")
+            print("Collision Detected! Resetting...")
             reset_state()
 
         elif steps[current_step] == "FORWARD":
-            status_led.next_object()
             # If the current step is moving forward, just follow the line until the next intersections
             if L_overline.status() and R_overline.status():
                 # Both sensors on line -> intersection detected
+                print("Front of car over intersection")
                 intersection_detected = True
-                print("Front over intersection")
-                #move_forward()
 
             if B_overline.status() and intersection_detected == True:
                 # A intersections was detected and now we are at the intersection -> move to next step
-                print("Whole car over intersection!")
+                print("Car at intersection, go to next step")
                 stop_motors()
                 time.sleep(0.5)
                 next_step()
-            else: 
-                print("Just follow line with PID-controller")
-                error = (L_overline.value() - R_overline.value()) / 65535.0  # Normalize between -1 and 1
+            else:
+                print("Follow line with PID-controller")
+                error = (
+                    L_overline.value() - R_overline.value()
+                ) / 65535.0  # Normalize between -1 and 1
                 error_sum += error  # Integral term
                 error_derivative = error - last_error  # Derivative term
                 last_error = error  # Save error for next loop
@@ -253,23 +265,30 @@ while True:
                 # Adjust motor speeds
                 left_speed = int(BASE_SPEED + (correction * BASE_SPEED))
                 right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
-                #print(f"Left speed {left_speed} Right speed {right_speed}")
+                # print(f"Left speed {left_speed} Right speed {right_speed}")
                 Motor_Left.run(duty_cycle_to_speed(left_speed))
                 Motor_Right.run(duty_cycle_to_speed(right_speed))
 
-
         else:
             # The robot is currently turning, wait until back on line before moving to next step
+            # To make sure the car actually turned 90 degrees, a minimum turning time is introduced (0.5s), this prevents the car
+            # from instantly going to the next step on turns(before actually starting the turn)
             if steps[current_step] == "RIGHT":
                 # If the robot is turning right, it should stop turning once the right(TODO: left?) sensor hits the black line
                 turn_right()
-                if R_overline.status() and time.monotonic() - time_since_next_step > 0.5:
+                if (
+                    R_overline.status()
+                    and time.monotonic() - time_since_next_step > 0.5
+                ):
                     stop_motors()
                     next_step()
-            elif steps[current_step] == "LEFT" :
+            elif steps[current_step] == "LEFT":
                 # If the robot is turning left, it should stop turning once the left(TODO: right?) sensor hits the black line
                 turn_left()
-                if L_overline.status() and time.monotonic() - time_since_next_step > 0.5:
+                if (
+                    L_overline.status()
+                    and time.monotonic() - time_since_next_step > 0.5
+                ):
                     stop_motors()
                     next_step()
 
@@ -281,6 +300,4 @@ while True:
     if websocket is not None:
         poll_websocket()
 
-    time.sleep(0.01)
-
-
+    time.sleep(0.05)
