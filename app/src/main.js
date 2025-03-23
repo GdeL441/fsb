@@ -125,6 +125,38 @@ function resetTimer() {
 
 let ssids, loading, ipInput, position, heading, step, sensors
 
+
+
+function drawGrid() {
+  const canvas = document.getElementById("gridCanvas");
+  const ctx = canvas.getContext("2d");
+
+  const COLS = 10; // Aantal rijen en kolommen
+  const ROWS = 5; // Aantal rijen en kolommen
+  const cellSize = 50; // Grootte van een cel in pixels
+
+  canvas.width = COLS * cellSize;
+  canvas.height = ROWS * cellSize;
+  ctx.strokeStyle = "black";
+
+  for (let i = 0; i <= COLS; i++) {
+    // Verticale lijnen
+    ctx.beginPath();
+    ctx.moveTo(i * cellSize, 0);
+    ctx.lineTo(i * cellSize, canvas.height);
+    ctx.stroke();
+  }
+  for (let i = 0; i <= ROWS; i++) {
+    // Horizontale lijnen
+    ctx.beginPath();
+    ctx.moveTo(0, i * cellSize);
+    ctx.lineTo(canvas.width, i * cellSize);
+    ctx.stroke();
+  }
+}
+
+
+
 window.addEventListener("DOMContentLoaded", () => {
   const scanBtn = document.querySelector("#scan-btn");
   const connectBtn = document.querySelector("#connect-btn");
@@ -138,6 +170,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const stopBtn = document.querySelector("#stop");
   const resetBtn = document.querySelector("#reset");
 
+  drawGrid()
 
   ssids = document.querySelector("#wifi-ssids")
   ipInput = document.querySelector("#ip-input")

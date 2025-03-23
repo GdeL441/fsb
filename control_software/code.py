@@ -148,10 +148,6 @@ def turn_left(right_speed=50):
     print("Turn left")
 
 
-
-
-
-
 def turn_right(left_speed=50):
     Motor_Right.run(-left_speed)
     Motor_Left.run(left_speed)
@@ -228,12 +224,19 @@ def duty_cycle_to_speed(duty_cycle):
     speed = (duty_cycle * 100) / 65535  # Convert duty cycle back to percentage
     return speed
 
+
 def send_sensor_values():
     if websocket == None:
         return
 
-    data = {"action": "sensor_values", "L": L_overline.value(), "R": R_overline.value(), "B": B_overline.value()}
+    data = {
+        "action": "sensor_values",
+        "L": L_overline.value(),
+        "R": R_overline.value(),
+        "B": B_overline.value(),
+    }
     websocket.send_message(json.dumps(data), fail_silently=True)
+
 
 # Main loop
 while True:
@@ -307,7 +310,7 @@ while True:
 
     else:
 
-        if MONITORING_SENSOR: 
+        if MONITORING_SENSOR:
             send_sensor_values()
 
         stop_motors()
