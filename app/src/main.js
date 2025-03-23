@@ -25,8 +25,8 @@ async function connectWs(url) {
       console.log("heading", data.heading, "position", data.position)
     } else if (data.action == "finished") {
       console.log("Finished")
+      stopTimer()
     }
-    console.log(event, data)
   };
   ws.onerror = error => {
     console.error(error)
