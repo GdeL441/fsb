@@ -23,10 +23,10 @@ async function connectWs(url) {
       console.log(data.step)
       step.textContent = `Current step: ${data.step}`
     } else if (data.action == "position_updated") {
-
       position.textContent = JSON.stringify(data.position)
       heading.textContent = `Heading: ${data.heading}`
       console.log("heading", data.heading, "position", data.position)
+      drawDot(data.position.x, data.position.y, data.heading)
     } else if (data.action == "finished") {
       console.log("Finished")
       stopTimer()
@@ -125,19 +125,21 @@ function resetTimer() {
 
 let ssids, loading, ipInput, position, heading, step, sensors
 
+let canvas, ctx
+const COLS = 10; // Aantal rijen en kolommen
+const ROWS = 5; // Aantal rijen en kolommen
+const cellSize = 50; // Grootte van een cel in pixels
 
 
 function drawGrid() {
-  const canvas = document.getElementById("gridCanvas");
-  const ctx = canvas.getContext("2d");
-
-  const COLS = 10; // Aantal rijen en kolommen
-  const ROWS = 5; // Aantal rijen en kolommen
-  const cellSize = 50; // Grootte van een cel in pixels
+  canvas = document.getElementById("gridCanvas");
+  ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   canvas.width = COLS * cellSize;
   canvas.height = ROWS * cellSize;
   ctx.strokeStyle = "black";
+  ctx.lineWidth = 3;
 
   for (let i = 0; i <= COLS; i++) {
     // Verticale lijnen
@@ -155,6 +157,41 @@ function drawGrid() {
   }
 }
 
+function drawDot(x, y, direction) {
+  drawGrid(); // Herteken het grid
+  ctx.fillStyle = "blue";
+  ctx.beginPath();
+  ctx.arc(x * cellSize, (ROWS - y) * cellSize, cellSize / 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "blue";
+  ctx.beginPath();
+  const arrowSize = cellSize / 3;
+
+  switch (direction) {
+    case "N":
+      ctx.moveTo(x * cellSize, (ROWS - y - 0.85) * cellSize + arrowSize);
+      ctx.lineTo(x * cellSize - arrowSize / 2, (ROWS - y - 0.85) * cellSize + arrowSize * 2);
+      ctx.lineTo(x * cellSize + arrowSize / 2, (ROWS - y - 0.85) * cellSize + arrowSize * 2);
+      break;
+    case "E":
+      ctx.moveTo((x + 0.85) * cellSize - arrowSize, (ROWS - y) * cellSize);
+      ctx.lineTo((x + 0.85) * cellSize - arrowSize * 2, (ROWS - y) * cellSize - arrowSize / 2);
+      ctx.lineTo((x + 0.85) * cellSize - arrowSize * 2, (ROWS - y) * cellSize + arrowSize / 2);
+      break;
+    case "S":
+      ctx.moveTo(x * cellSize, (ROWS - y + 0.85) * cellSize - arrowSize);
+      ctx.lineTo(x * cellSize - arrowSize / 2, (ROWS - y + 0.85) * cellSize - arrowSize * 2);
+      ctx.lineTo(x * cellSize + arrowSize / 2, (ROWS - y + 0.85) * cellSize - arrowSize * 2);
+      break;
+    case "W":
+      ctx.moveTo((x - 0.85) * cellSize + arrowSize, (ROWS - y) * cellSize);
+      ctx.lineTo((x - 0.85) * cellSize + arrowSize * 2, (ROWS - y) * cellSize - arrowSize / 2);
+      ctx.lineTo((x - 0.85) * cellSize + arrowSize * 2, (ROWS - y) * cellSize + arrowSize / 2);
+      break;
+  }
+  ctx.fill()
+}
 
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -214,6 +251,7 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   startBtn.addEventListener("click", async (e) => {
+    // drawDot(1, 1, "S");
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "start" }))
@@ -221,6 +259,7 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   stopBtn.addEventListener("click", async (e) => {
+    // drawDot(1, 1, "W");
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "stop" }))
@@ -228,6 +267,7 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   resetBtn.addEventListener("click", async (e) => {
+    // drawDot(2, 1, "E");
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "reset" }))
