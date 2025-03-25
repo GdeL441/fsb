@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "fsb",
+  "productName": "FSB Telemetry Interface",
   "version": "0.1.0",
   "identifier": "com.fsb.app",
   "build": {
@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "fsb",
+        "title": "FSB Telemetry Interface",
         "width": 1300,
         "height": 950
       }
