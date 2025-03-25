@@ -158,7 +158,7 @@ function drawGrid() {
 }
 
 function drawDot(x, y, direction) {
-  drawGrid(); // Herteken het grid
+  drawGrid();
   ctx.fillStyle = "blue";
   ctx.beginPath();
   ctx.arc(x * cellSize, (ROWS - y) * cellSize, cellSize / 4, 0, Math.PI * 2);

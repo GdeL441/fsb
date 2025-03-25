@@ -15,7 +15,7 @@
   font-weight: 400;
 
   color: #0f0f0f;
-  background-color: #f6f6f6;
+  background-color: #f2f2f2;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -82,9 +82,9 @@ button {
   font-weight: 500;
   font-family: inherit;
   color: #0f0f0f;
-  background-color: #ffffff;
+  background-color: #fafafa;
   transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.1);
   padding: 0.6em 1.2em;
 }
 
@@ -136,13 +136,16 @@ li {
 .hide {
   display: none;
 }
+
 h2 {
   font-size: 20px;
 }
+
 .timer, .status {
   display: flex;
   gap: 1rem;
 }
+
 .control-motors {
   margin-bottom: 20px
 }
@@ -150,4 +153,4 @@ h2 {
 hr {
   opacity: 30%
 }
-}
+
