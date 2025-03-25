@@ -1,5 +1,5 @@
 [package]
-name = "fsb"
+name = "FSB_Telemetry_Interface"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
