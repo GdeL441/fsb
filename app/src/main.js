@@ -49,6 +49,46 @@ async function connectWs(url) {
     ws = null
   };
 };
+async function scan() {
+  const loading = document.getElementById('loading');
+  const noNetworks = document.getElementById('no-networks');
+  const ssidsList = document.getElementById('wifi-ssids');
+  const template = document.getElementById('wifi-network-template');
+
+  loading.classList.remove('d-none');
+  ssidsList.innerHTML = '';
+  noNetworks.classList.add('d-none');
+
+  try {
+    const wifiSSIDs = await invoke("scan");
+    loading.classList.add('d-none');
+
+    if (wifiSSIDs.length === 0) {
+      noNetworks.classList.remove('d-none');
+      return;
+    }
+
+    wifiSSIDs.forEach(ssid => {
+      const networkItem = template.content.cloneNode(true);
+      networkItem.querySelector('.network-name').textContent = ssid;
+
+      const connectBtn = networkItem.querySelector('button');
+      connectBtn.addEventListener('click', async () => {
+        connectToWifi(ssid)
+      });
+
+      ssidsList.appendChild(networkItem);
+    });
+
+  } catch (error) {
+    console.error('Error scanning networks:', error);
+    loading.classList.add('d-none');
+    noNetworks.textContent = 'Error scanning networks. Please try again.';
+    noNetworks.classList.remove('d-none');
+  }
+}
+
+
 
 let timer;
 let milliseconds = 0;
@@ -237,10 +277,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const connectBtn = document.querySelector("#connect-btn");
   const disconnectBtn = document.querySelector("#disconnect-btn");
+  const scanBtn = document.querySelector("#scan-btn")
 
   const startBtn = document.querySelector("#start");
   const stopBtn = document.querySelector("#stop");
   const resetBtn = document.querySelector("#reset");
+  const sensorsBtn = document.querySelector("#monitor-btn")
+
+  loading = document.querySelector("#loading")
+  loading.classList.add("d-none")
 
   ssids = document.querySelector("#wifi-ssids")
   ipInput = document.querySelector("#ip-input")
@@ -249,6 +294,9 @@ window.addEventListener("DOMContentLoaded", () => {
   step = document.querySelector("#step")
   statusDot = document.querySelector("#status-dot")
 
+  scanBtn.addEventListener("click", (e) => {
+    scan()
+  })
   connectBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     // const url = await invoke("get_url");

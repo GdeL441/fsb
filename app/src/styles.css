@@ -14,3 +14,22 @@
   display: block;
 }
 
+.pc-content {
+  padding-top: 80px !important;
+  min-height: 100vh;
+}
+#dashboard_section {
+  padding-top: 0px !important;
+  /* margin-top: 100px; */
+  /* transform: translateY(100px); */
+  
+}
+#dashboard {
+  height: 80px;
+}
+.pc-container {
+  top: 0 !important;
+}
+/* .pc-container { */
+/*   position: absolute !important; */
+/* } */

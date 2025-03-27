@@ -50,7 +50,7 @@
       </div>
       <div class="navbar-content">
         <ul class="pc-navbar">
-          <li class="pc-item">
+          <li class="pc-item" id="dashboard-link">
             <a href="#dashboard" class="pc-link">
               <span class="pc-micon"><i class="ti ti-dashboard"></i></span>
               <span class="pc-mtext">Dashboard</span>
@@ -61,14 +61,14 @@
             <label>Configuration</label>
             <i class="ti ti-dashboard"></i>
           </li>
-          <li class="pc-item">
+          <li class="pc-item" id="settings-link">
             <a href="#settings" class="pc-link">
               <span class="pc-micon"><i class="ti ti-settings"></i></span>
               <span class="pc-mtext">Settings</span>
             </a>
           </li>
           <li class="pc-item">
-            <a href="wifi.html" class="pc-link">
+            <a href="#wifi" class="pc-link">
               <span class="pc-micon"><i class="ti ti-wifi"></i></span>
               <span class="pc-mtext">WiFi Setup</span>
             </a>
@@ -125,7 +125,8 @@
 
   <!-- [ Main Content ] start -->
   <div class="pc-container">
-    <div class="pc-content" id="dashboard">
+    <div class="pc-content" id="dashboard_section">
+      <div id="dashboard"></div>
       <!-- [ breadcrumb ] start -->
       <!-- [ breadcrumb ] end -->
       <!-- [ Main Content ] start -->
@@ -290,6 +291,55 @@
         </div>
       </div>
       <!--[ settings ] end-->
+    </div>
+    <div class="pc-content" id="wifi">
+
+      <!--[ Main Content ] start-->
+      <div class="row">
+        <!--[ tabler-icon ] start-->
+        <div class="col-sm-12">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="text-center">WiFi Setup</h2>
+              <div class="d-flex align-items-center justify-content-center gap-3 mt-3">
+                <button type="button" class="btn btn-primary" id="scan-btn">
+                  <i class="ti ti-wifi me-1"></i>Scan WiFi
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div id="loading" class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Scanning for networks...</p>
+              </div>
+
+              <template id="wifi-network-template">
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                  <span class="network-name"></span>
+                  <button class="btn btn-primary btn-sm">
+                    <i class="ti ti-plug me-1"></i>Connect
+                  </button>
+                </div>
+              </template>
+
+              <div id="wifi-results">
+                <h5 class="mb-3">Available Networks</h5>
+                <div class="list-group" id="wifi-ssids">
+                  <!-- WiFi networks will be inserted here -->
+                </div>
+                <p id="no-networks" class="text-muted text-center mt-3 d-none">
+                  No networks found. Try scanning again.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!--[ tabler-icon ] end-->
+      </div>
+      <!--[ Main Content ] end-->
+
     </div>
 
   </div>
