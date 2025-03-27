@@ -123,13 +123,13 @@
             <div class="card-body">
               <div class="d-flex gap-3 align-items-center">
                 <div class="d-flex gap-3">
-                  <button type="button" class="btn btn-primary">Start</button>
-                  <button type="button" class="btn btn-danger">Stop</button>
-                  <button type="button" class="btn btn-warning">Reset</button>
-                  <button type="button" class="btn btn-secondary">Disconnect</button>
+                  <button type="button" class="btn btn-primary" id="start">Start</button>
+                  <button type="button" class="btn btn-danger" id="stop">Stop</button>
+                  <button type="button" class="btn btn-warning" id="reset">Reset</button>
+                  <button type="button" class="btn btn-secondary" id="disconnect-btn">Disconnect</button>
                 </div>
                 <div class="d-flex align-items-center gap-2 ms-auto">
-                  <span id="connection-text">Disconnected</span>
+                  <span id="status">Disconnected</span>
                   <!-- bg-danger or bg-success-->
                   <span class="status-dot bg-danger"
                     style="width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
@@ -142,7 +142,8 @@
           <div class="card">
             <div class="card-body">
               <h6 class="mb-3 f-w-400 text-muted">Position view</h6>
-              <img src="assets/grid.png" alt="Position Grid" class="img-fluid w-100">
+              <!-- <img src="assets/grid.png" alt="Position Grid" class="img-fluid w-100"> -->
+              <canvas id="gridCanvas"></canvas>
             </div>
           </div>
         </div>
@@ -171,7 +172,7 @@
               <h6 class="mb-3 f-w-400 text-muted">Game Progress</h6>
               <div class="d-flex flex-column gap-3">
                 <h4 class="mb-0" id="towers">Amount of collected towers: </h4>
-                <h4 class="mb-0" id="current-step">Current step:</h4>
+                <h4 class="mb-0" id="step">Current step:</h4>
               </div>
             </div>
           </div>
@@ -202,6 +203,7 @@
   <script src="assets/js/fonts/custom-font.js"></script>
   <script src="assets/js/pcoded.js"></script>
   <script src="assets/js/plugins/feather.min.js"></script>
+  <script type="module" defer src="./main.js"></script>
 
 
 

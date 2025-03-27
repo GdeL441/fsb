@@ -126,9 +126,9 @@ function resetTimer() {
 let ssids, loading, ipInput, position, heading, step, sensors
 
 let canvas, ctx
-const COLS = 10; // Aantal rijen en kolommen
+const COLS = 7; // Aantal rijen en kolommen
 const ROWS = 5; // Aantal rijen en kolommen
-const cellSize = 50; // Grootte van een cel in pixels
+const cellSize = 100; // Grootte van een cel in pixels
 
 
 function drawGrid() {
@@ -211,26 +211,26 @@ window.addEventListener("DOMContentLoaded", () => {
 
   ssids = document.querySelector("#wifi-ssids")
   ipInput = document.querySelector("#ip-input")
-  position = document.querySelector("#position")
+  position = document.querySelector("#pos")
   heading = document.querySelector("#heading")
   step = document.querySelector("#step")
   sensors = document.querySelector("#sensors")
 
-  loading = document.querySelector("#loading")
-  loading.style.display = "none"
+  // loading = document.querySelector("#loading")
+  // loading.style.display = "none"
 
-  scanBtn.addEventListener("click", (e) => {
-    e.preventDefault();
-    scan();
-  });
-  connectBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
-    // const url = await invoke("get_url");
+  // scanBtn.addEventListener("click", (e) => {
+  //   e.preventDefault();
+  //   scan();
+  // });
+  // connectBtn.addEventListener("click", async (e) => {
+  //   e.preventDefault();
+  //   // const url = await invoke("get_url");
 
-    const wsUrl = `ws://${ipInput.value}/ws`
-    console.log("Connect to", wsUrl)
-    connectWs(wsUrl)
-  });
+  //   const wsUrl = `ws://${ipInput.value}/ws`
+  //   console.log("Connect to", wsUrl)
+  //   connectWs(wsUrl)
+  // });
   disconnectBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     if (!ws) return
@@ -239,19 +239,20 @@ window.addEventListener("DOMContentLoaded", () => {
     showConnectView()
   });
 
-  startMotorBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
-    if (!ws) return
-    ws.send(JSON.stringify({ action: "move", speedL: 100, speedR: 100 }))
-  });
-  stopMotorBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
-    if (!ws) return
-    ws.send(JSON.stringify({ action: "move", speedL: 0, speedR: 0 }))
-  });
+  // startMotorBtn.addEventListener("click", async (e) => {
+  //   e.preventDefault();
+  //   if (!ws) return
+  //   ws.send(JSON.stringify({ action: "move", speedL: 100, speedR: 100 }))
+  // });
+  // stopMotorBtn.addEventListener("click", async (e) => {
+  //   e.preventDefault();
+  //   if (!ws) return
+  //   ws.send(JSON.stringify({ action: "move", speedL: 0, speedR: 0 }))
+  // });
 
   startBtn.addEventListener("click", async (e) => {
-    // drawDot(1, 1, "S");
+    drawDot(1, 1, "S");
+    startTimer()
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "start" }))
@@ -259,7 +260,8 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   stopBtn.addEventListener("click", async (e) => {
-    // drawDot(1, 1, "W");
+    drawDot(1, 1, "W");
+    stopTimer()
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "stop" }))
@@ -267,7 +269,9 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   resetBtn.addEventListener("click", async (e) => {
-    // drawDot(2, 1, "E");
+    drawDot(2, 1, "E");
+    stopTimer()
+    resetTimer()
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "reset" }))
@@ -275,19 +279,10 @@ window.addEventListener("DOMContentLoaded", () => {
     resetTimer()
   });
 
-  sensorsBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
-    if (!ws) return
-    ws.send(JSON.stringify({ action: "monitor_sensor" }))
-  });
+  // sensorsBtn.addEventListener("click", async (e) => {
+  //   e.preventDefault();
+  //   if (!ws) return
+  //   ws.send(JSON.stringify({ action: "monitor_sensor" }))
+  // });
 
-  speedInput.oninput = function() {
-    if (!ws) return
-    ws.send(JSON.stringify({ action: "move", speedL: this.value, speedR: this.value }))
-    // if (this.value > 0) {
-    //   ws.send(JSON.stringify({ action: "start_motor", speed: this.value, direction: "forward" }))
-    // } else {
-    //   ws.send(JSON.stringify({ action: "start_motor", speed: Math.abs(this.value), direction: "backward" }))
-    // }
-  }
 });
