@@ -1,65 +1,236 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="stylesheet" href="styles.css" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FSB Telemetry Interface</title>
-    <script type="module" src="/main.js" defer></script>
-    <style>
-    </style>
-  </head>
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="auto">
+<!-- [Head] start -->
 
-  <body>
-    <main class="container">
-      <h1 class="header">Fast Shitbox Telemetry Interface</h1>
-      <span id="status"></span>
-      <!-- class="hide"-->
-      <div id="dashboard" >
-        <button id="start">Start</button>
-        <button id="stop">Stop</button>
-        <button id="reset">Reset</button>
-        <button id="disconnect-btn">Disconnect</button>
-        
-        <div>
-          <div class="timer">
-            <h2>Timer</h2>
-            <span id="timer">00 : 00 : 00</span>
-          </div>
-          <div class="status">
-            <h2>Status</h2>
-            <span id="step"></span>
-            <span id="position">x: 1    y: 1</span>
-            <span id="heading">Heading: N</span>
-            <button id="sensors-btn">Monitor sensors</button>
-            <span id="sensors"></span>
-          </div>
-        </div>
+<head>
+  <title>Home | FSB Control Software</title>
+  <!-- [Meta] -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
-        <div class="control-motors">
-          <h2>Control motors</h2>
-          <button id="start-motor">Start motor</button>
-          <button id="stop-motor">Stop motor</button>
-          <input type="range" min="-100" max="100" value="0" id="speed">
-        </div>
+  <!-- [Favicon] icon -->
+  <link rel="icon" href="assets/images/favicon.svg" type="image/x-icon"> <!-- [Google Font] Family -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&display=swap" id="main-font-link">
+<!-- [Tabler Icons] https://tablericons.com -->
+<link rel="stylesheet" href="assets/fonts/tabler-icons.min.css" >
+<!-- [Feather Icons] https://feathericons.com -->
+<link rel="stylesheet" href="assets/fonts/feather.css" >
+<!-- [Font Awesome Icons] https://fontawesome.com/icons -->
+<link rel="stylesheet" href="assets/fonts/fontawesome.css" >
+<!-- [Material Icons] https://fonts.google.com/icons -->
+<link rel="stylesheet" href="assets/fonts/material.css" >
+<!-- [Template CSS Files] -->
+<link rel="stylesheet" href="assets/css/style.css" id="main-style-link" >
+<link rel="stylesheet" href="assets/css/style-preset.css" >
 
-        <canvas id="gridCanvas"></canvas>
+</head>
+<!-- [Head] end -->
+<!-- [Body] Start -->
 
-        <hr/>
+<body data-pc-preset="preset-1" data-pc-direction="ltr" data-pc-theme="light">
+  <!-- [ Pre-loader ] start -->
+<div class="loader-bg">
+  <div class="loader-track">
+    <div class="loader-fill"></div>
+  </div>
+</div>
+<!-- [ Pre-loader ] End -->
+ <!-- [ Sidebar Menu ] start -->
+<nav class="pc-sidebar">
+  <div class="navbar-wrapper">
+    <div class="m-header">
+      <a href="index.html" class="b-brand text-primary">
+        <!-- ========   Change your logo from here   ============ -->
+        <img src="assets/images/logo-dark.svg" class="img-fluid logo-lg" alt="logo">
+      </a>
+    </div>
+    <div class="navbar-content">
+      <ul class="pc-navbar">
+        <li class="pc-item">
+          <a href="index.html" class="pc-link">
+            <span class="pc-micon"><i class="ti ti-dashboard"></i></span>
+            <span class="pc-mtext">Dashboard</span>
+          </a>
+        </li>
 
+        <li class="pc-item pc-caption">
+          <label>Configuration</label>
+          <i class="ti ti-dashboard"></i>
+        </li>
+        <li class="pc-item">
+          <a href="settings.html" class="pc-link">
+            <span class="pc-micon"><i class="ti ti-settings"></i></span>
+            <span class="pc-mtext">Settings</span>
+          </a>
+        </li>
+        <li class="pc-item">
+          <a href="wifi.html" class="pc-link">
+            <span class="pc-micon"><i class="ti ti-wifi"></i></span>
+            <span class="pc-mtext">WiFi Setup</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+<!-- [ Sidebar Menu ] end --> <!-- [ Header Topbar ] start -->
+<header class="pc-header">
+  <div class="header-wrapper"> <!-- [Mobile Media Block] start -->
+<div class="me-auto pc-mob-drp">
+  <ul class="list-unstyled">
+    <!-- ======= Menu collapse Icon ===== -->
+    <li class="pc-h-item pc-sidebar-collapse">
+      <a href="#" class="pc-head-link ms-0" id="sidebar-hide">
+        <i class="ti ti-menu-2"></i>
+      </a>
+    </li>
+    <li class="pc-h-item pc-sidebar-popup">
+      <a href="#" class="pc-head-link ms-0" id="mobile-collapse">
+        <i class="ti ti-menu-2"></i>
+      </a>
+    </li>
+    <li class="dropdown pc-h-item d-inline-flex d-md-none">
+      <a
+        class="pc-head-link dropdown-toggle arrow-none m-0"
+        data-bs-toggle="dropdown"
+        href="#"
+        role="button"
+        aria-haspopup="false"
+        aria-expanded="false"
+      >
+      </a>
+    </li>
+  </ul>
+</div>
+<!-- [Mobile Media Block end] -->
       </div>
+    </li>
+  </ul>
+</div>
+ </div>
+</header>
+<!-- [ Header ] end -->
 
-      <div id="connect-view">
-        <div class="wifi-networks">
-          <button id="scan-btn">Scan WiFi</button>
-          <button id="connect-btn">Try connecting</button>
-          <label>Device IP: </label>
-          <input id="ip-input" type="text" value="192.168.4.1"/>
+
+
+  <!-- [ Main Content ] start -->
+  <div class="pc-container">
+    <div class="pc-content">
+      <!-- [ breadcrumb ] start -->
+      <!-- [ breadcrumb ] end -->
+      <!-- [ Main Content ] start -->
+      <div class="row">
+        <!-- [ sample-page ] start -->
+        <div class="col-md-12 col-xl-12">
+          <div class="card">
+            <div class="card-body">
+              <div class="d-flex gap-3 align-items-center">
+                <div class="d-flex gap-3">
+                  <button type="button" class="btn btn-primary">Start</button>
+                  <button type="button" class="btn btn-danger">Stop</button>
+                  <button type="button" class="btn btn-warning">Reset</button>
+                  <button type="button" class="btn btn-secondary">Disconnect</button>
+                </div>
+                <div class="d-flex align-items-center gap-2 ms-auto">
+                  <span id="connection-text">Disconnected</span>
+                  <!-- bg-danger or bg-success-->
+                  <span class="status-dot bg-danger" style="width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <h2>Wifi networks</h2>
-        <span id="loading">Loading</span>
-        <ul id="wifi-ssids"></ul>
+        <div class="col-md-12 col-xl-8">
+          <div class="card">
+            <div class="card-body">
+              <h6 class="mb-3 f-w-400 text-muted">Position view</h6>
+              <img src="assets/grid.png" alt="Position Grid" class="img-fluid w-100">
+            </div>
+          </div>
+        </div>
+        <!-- Timer - still in text -->
+        <div class="col-md-12 col-xl-4">
+          <div class="card">
+            <div class="card-body">
+              <h6 class="mb-3 f-w-400 text-muted">Timer</h6>
+              <div class="d-flex flex-column gap-3">
+                <h4 class="mb-0" id="timer">00:00:00</h4>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <h6 class="mb-3 f-w-400 text-muted">Status</h6>
+              <div class="d-flex flex-column gap-3">
+                <h4 class="mb-0" id="pos">Position: </h4>
+                <h4 class="mb-0" id="heading">Heading:</h4>
+                <h4 class="mb-0" id="score">Score:</h4>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <h6 class="mb-3 f-w-400 text-muted">Game Progress</h6>
+              <div class="d-flex flex-column gap-3">
+                <h4 class="mb-0" id="towers">Amount of collected towers: </h4>
+                <h4 class="mb-0" id="current-step">Current step:</h4>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </main>
-  </body>
+    </div>
+  </div>
+  <!-- [ Main Content ] end -->
+  <footer class="pc-footer">
+    <div class="footer-wrapper container-fluid">
+      <div class="row">
+        <div class="col-sm my-1">
+          <p class="m-0"
+            >FSB Control Software crafted by Team 502. View us on <a href="https://github.com/GdeL441/fsb" target="_blank">Github</a></p
+          >
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- [Page Specific JS] start -->
+  <script src="assets/js/plugins/apexcharts.min.js"></script>
+  <script src="assets/js/pages/dashboard-default.js"></script>
+  <!-- [Page Specific JS] end -->
+  <!-- Required Js -->
+  <script src="assets/js/plugins/popper.min.js"></script>
+  <script src="assets/js/plugins/simplebar.min.js"></script>
+  <script src="assets/js/plugins/bootstrap.min.js"></script>
+  <script src="assets/js/fonts/custom-font.js"></script>
+  <script src="assets/js/pcoded.js"></script>
+  <script src="assets/js/plugins/feather.min.js"></script>
+
+  
+  
+  
+  
+  <script>layout_change('light');</script>
+  
+  
+  
+  
+  <script>change_box_container('false');</script>
+  
+  
+  
+  <script>layout_rtl_change('false');</script>
+  
+  
+  <script>preset_change("preset-1");</script>
+  
+  
+  <script>font_change("Public-Sans");</script>
+  
+    
+
+</body>
+<!-- [Body] end -->
+
 </html>
