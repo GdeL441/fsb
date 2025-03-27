@@ -63,47 +63,6 @@ function hideConnectView() {
   document.getElementById("dashboard").classList.remove("hide")
 };
 
-async function scan() {
-  const loading = document.getElementById('loading');
-  const noNetworks = document.getElementById('no-networks');
-  const ssidsList = document.getElementById('wifi-ssids');
-  const template = document.getElementById('wifi-network-template');
-  
-  loading.classList.remove('d-none');
-  ssidsList.innerHTML = '';
-  noNetworks.classList.add('d-none');
-  
-  try {
-    const wifiSSIDs = await invoke("scan");
-    loading.classList.add('d-none');
-    
-    if (wifiSSIDs.length === 0) {
-      noNetworks.classList.remove('d-none');
-      return;
-    }
-    
-    wifiSSIDs.forEach(ssid => {
-      const networkItem = template.content.cloneNode(true);
-      networkItem.querySelector('.network-name').textContent = ssid;
-      
-      const connectBtn = networkItem.querySelector('button');
-      connectBtn.addEventListener('click', async () => {
-        const wsUrl = `ws://${ipInput.value}/ws`;
-        console.log("Connecting to WiFi:", ssid, "WebSocket URL:", wsUrl);
-        if (wsUrl) connectWs(wsUrl);
-      });
-      
-      ssidsList.appendChild(networkItem);
-    });
-    
-  } catch (error) {
-    console.error('Error scanning networks:', error);
-    loading.classList.add('d-none');
-    noNetworks.textContent = 'Error scanning networks. Please try again.';
-    noNetworks.classList.remove('d-none');
-  }
-}
-
 let timer;
 let milliseconds = 0;
 let isRunning = false;
@@ -154,228 +113,220 @@ let cellSize; // Make cellSize dynamic
 
 // Add state variables to track current position
 let currentPosition = {
-    x: null,
-    y: null,
-    direction: null
+  x: null,
+  y: null,
+  direction: null
 };
 
 function calculateCellSize() {
-    // Calculate cell size based on canvas dimensions and grid size
-    const horizontalSize = canvas.width / COLS;
-    const verticalSize = canvas.height / ROWS;
-    // Use the smaller value to ensure squares fit both dimensions
-    return Math.min(horizontalSize, verticalSize);
+  // Calculate cell size based on canvas dimensions and grid size
+  const horizontalSize = canvas.width / COLS;
+  const verticalSize = canvas.height / ROWS;
+  // Use the smaller value to ensure squares fit both dimensions
+  return Math.min(horizontalSize, verticalSize);
 }
 
 function resizeCanvas() {
-    canvas = document.getElementById('gridCanvas');
-    const parent = canvas.parentElement;
-    
-    // Get the parent's computed width
-    const width = parent.clientWidth;
-    const height = parent.clientHeight;
-    
-    // Set canvas size to match CSS size
-    canvas.width = width;
-    canvas.height = height;
-    
-    // Recalculate cell size
-    cellSize = calculateCellSize();
-    
-    // Redraw everything
-    drawGrid();
-    
-    // If there's a current position, redraw the dot using currentPosition state
-    if (currentPosition.x !== null && currentPosition.y !== null && currentPosition.direction !== null) {
-        drawDot(currentPosition.x, currentPosition.y, currentPosition.direction);
-    }
+  canvas = document.getElementById('gridCanvas');
+  const parent = canvas.parentElement;
+
+  // Get the parent's computed width
+  const width = parent.clientWidth;
+  const height = parent.clientHeight;
+
+  // Set canvas size to match CSS size
+  canvas.width = width;
+  canvas.height = height;
+
+  // Recalculate cell size
+  cellSize = calculateCellSize();
+
+  // Redraw everything
+  drawGrid();
+
+  // If there's a current position, redraw the dot using currentPosition state
+  if (currentPosition.x !== null && currentPosition.y !== null && currentPosition.direction !== null) {
+    drawDot(currentPosition.x, currentPosition.y, currentPosition.direction);
+  }
 }
 
 function drawGrid() {
-    ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Center the grid
-    const gridWidth = COLS * cellSize;
-    const gridHeight = ROWS * cellSize;
-    const offsetX = (canvas.width - gridWidth) / 2;
-    const offsetY = (canvas.height - gridHeight) / 2;
+  // Center the grid
+  const gridWidth = COLS * cellSize;
+  const gridHeight = ROWS * cellSize;
+  const offsetX = (canvas.width - gridWidth) / 2;
+  const offsetY = (canvas.height - gridHeight) / 2;
 
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 3;
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 3;
 
-    // Draw vertical lines
-    for (let i = 0; i <= COLS; i++) {
-        ctx.beginPath();
-        ctx.moveTo(offsetX + i * cellSize, offsetY);
-        ctx.lineTo(offsetX + i * cellSize, offsetY + gridHeight);
-        ctx.stroke();
-    }
+  // Draw vertical lines
+  for (let i = 0; i <= COLS; i++) {
+    ctx.beginPath();
+    ctx.moveTo(offsetX + i * cellSize, offsetY);
+    ctx.lineTo(offsetX + i * cellSize, offsetY + gridHeight);
+    ctx.stroke();
+  }
 
-    // Draw horizontal lines
-    for (let i = 0; i <= ROWS; i++) {
-        ctx.beginPath();
-        ctx.moveTo(offsetX, offsetY + i * cellSize);
-        ctx.lineTo(offsetX + gridWidth, offsetY + i * cellSize);
-        ctx.stroke();
-    }
+  // Draw horizontal lines
+  for (let i = 0; i <= ROWS; i++) {
+    ctx.beginPath();
+    ctx.moveTo(offsetX, offsetY + i * cellSize);
+    ctx.lineTo(offsetX + gridWidth, offsetY + i * cellSize);
+    ctx.stroke();
+  }
 }
 
 function drawDot(x, y, direction) {
-    // Update current position
-    currentPosition.x = x;
-    currentPosition.y = y;
-    currentPosition.direction = direction;
+  // Update current position
+  currentPosition.x = x;
+  currentPosition.y = y;
+  currentPosition.direction = direction;
 
-    const gridWidth = COLS * cellSize;
-    const gridHeight = ROWS * cellSize;
-    const offsetX = (canvas.width - gridWidth) / 2;
-    const offsetY = (canvas.height - gridHeight) / 2;
+  const gridWidth = COLS * cellSize;
+  const gridHeight = ROWS * cellSize;
+  const offsetX = (canvas.width - gridWidth) / 2;
+  const offsetY = (canvas.height - gridHeight) / 2;
 
-    drawGrid();
-    
-    // Calculate dot center position
-    const dotX = offsetX + x * cellSize;
-    const dotY = offsetY + (ROWS - y) * cellSize;
-    
-    const dotRadius = cellSize / 4;
-    
-    // Draw the dot
-    ctx.fillStyle = "blue";
-    ctx.beginPath();
-    ctx.arc(dotX, dotY, dotRadius, 0, Math.PI * 2);
-    ctx.fill();
+  drawGrid();
 
-    // Draw direction indicator
-    ctx.fillStyle = "blue";
-    ctx.beginPath();
-    const arrowSize = cellSize / 4; // Slightly smaller arrow
+  // Calculate dot center position
+  const dotX = offsetX + x * cellSize;
+  const dotY = offsetY + (ROWS - y) * cellSize;
 
-    // Update arrow drawing with new offsets and positioning on circle edge
-    switch (direction) {
-        case "N":
-            ctx.moveTo(dotX, dotY - dotRadius - arrowSize); // Start at circle edge
-            ctx.lineTo(dotX - arrowSize/2, dotY - dotRadius); // Base of arrow at circle edge
-            ctx.lineTo(dotX + arrowSize/2, dotY - dotRadius);
-            break;
-        case "E":
-            ctx.moveTo(dotX + dotRadius + arrowSize, dotY); // Point
-            ctx.lineTo(dotX + dotRadius, dotY - arrowSize/2); // Top of base
-            ctx.lineTo(dotX + dotRadius, dotY + arrowSize/2); // Bottom of base
-            break;
-        case "S":
-            ctx.moveTo(dotX, dotY + dotRadius + arrowSize);
-            ctx.lineTo(dotX - arrowSize/2, dotY + dotRadius);
-            ctx.lineTo(dotX + arrowSize/2, dotY + dotRadius);
-            break;
-        case "W":
-            ctx.moveTo(dotX - dotRadius - arrowSize, dotY);
-            ctx.lineTo(dotX - dotRadius, dotY - arrowSize/2);
-            ctx.lineTo(dotX - dotRadius, dotY + arrowSize/2);
-            break;
-    }
-    ctx.fill();
+  const dotRadius = cellSize / 4;
+
+  // Draw the dot
+  ctx.fillStyle = "blue";
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, dotRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw direction indicator
+  ctx.fillStyle = "blue";
+  ctx.beginPath();
+  const arrowSize = cellSize / 4; // Slightly smaller arrow
+
+  // Update arrow drawing with new offsets and positioning on circle edge
+  switch (direction) {
+    case "N":
+      ctx.moveTo(dotX, dotY - dotRadius - arrowSize); // Start at circle edge
+      ctx.lineTo(dotX - arrowSize / 2, dotY - dotRadius); // Base of arrow at circle edge
+      ctx.lineTo(dotX + arrowSize / 2, dotY - dotRadius);
+      break;
+    case "E":
+      ctx.moveTo(dotX + dotRadius + arrowSize, dotY); // Point
+      ctx.lineTo(dotX + dotRadius, dotY - arrowSize / 2); // Top of base
+      ctx.lineTo(dotX + dotRadius, dotY + arrowSize / 2); // Bottom of base
+      break;
+    case "S":
+      ctx.moveTo(dotX, dotY + dotRadius + arrowSize);
+      ctx.lineTo(dotX - arrowSize / 2, dotY + dotRadius);
+      ctx.lineTo(dotX + arrowSize / 2, dotY + dotRadius);
+      break;
+    case "W":
+      ctx.moveTo(dotX - dotRadius - arrowSize, dotY);
+      ctx.lineTo(dotX - dotRadius, dotY - arrowSize / 2);
+      ctx.lineTo(dotX - dotRadius, dotY + arrowSize / 2);
+      break;
+  }
+  ctx.fill();
 }
 
 // Add event listener for window resize with debouncing
 let resizeTimeout;
 window.addEventListener('resize', () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(resizeCanvas, 100);
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(resizeCanvas, 100);
 });
 
 // Initial setup when the page loads
 window.addEventListener("DOMContentLoaded", () => {
-    canvas = document.getElementById("gridCanvas");
-    resizeCanvas(); // This will set up the initial canvas size and draw the grid
-    
-    const scanBtn = document.querySelector("#scan-btn");
-    const connectBtn = document.querySelector("#connect-btn");
-    const startMotorBtn = document.querySelector("#start-motor");
-    const speedInput = document.querySelector("#speed");
-    const disconnectBtn = document.querySelector("#disconnect-btn");
-    const stopMotorBtn = document.querySelector("#stop-motor");
-    const sensorsBtn = document.querySelector("#sensors-btn");
+  canvas = document.getElementById("gridCanvas");
+  resizeCanvas(); // This will set up the initial canvas size and draw the grid
 
-    const startBtn = document.querySelector("#start");
-    const stopBtn = document.querySelector("#stop");
-    const resetBtn = document.querySelector("#reset");
+  const connectBtn = document.querySelector("#connect-btn");
+  const startMotorBtn = document.querySelector("#start-motor");
+  const speedInput = document.querySelector("#speed");
+  const disconnectBtn = document.querySelector("#disconnect-btn");
+  const stopMotorBtn = document.querySelector("#stop-motor");
+  const sensorsBtn = document.querySelector("#sensors-btn");
 
-    ssids = document.querySelector("#wifi-ssids")
-    ipInput = document.querySelector("#ip-input")
-    position = document.querySelector("#position")
-    heading = document.querySelector("#heading_")
-    step = document.querySelector("#step")
-    sensors = document.querySelector("#sensors")
-    statusDot = document.querySelector("#status-dot")
+  const startBtn = document.querySelector("#start");
+  const stopBtn = document.querySelector("#stop");
+  const resetBtn = document.querySelector("#reset");
 
-    // loading = document.querySelector("#loading")
-    // loading.style.display = "none"
+  ssids = document.querySelector("#wifi-ssids")
+  ipInput = document.querySelector("#ip-input")
+  position = document.querySelector("#position")
+  heading = document.querySelector("#heading_")
+  step = document.querySelector("#step")
+  sensors = document.querySelector("#sensors")
+  statusDot = document.querySelector("#status-dot")
 
-    // scanBtn.addEventListener("click", (e) => {
-    //   e.preventDefault();
-    //   scan();
-    // });
-    // connectBtn.addEventListener("click", async (e) => {
-    //   e.preventDefault();
-    //   // const url = await invoke("get_url");
+  connectBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    // const url = await invoke("get_url");
 
-    //   const wsUrl = `ws://${ipInput.value}/ws`
-    //   console.log("Connect to", wsUrl)
-    //   connectWs(wsUrl)
-    // });
-    disconnectBtn.addEventListener("click", async (e) => {
-      e.preventDefault();
-      if (!ws) return
-      ws.close()
-      ws = null
-      showConnectView()
-    });
+    const wsUrl = `ws://${ipInput.value}/ws`
+    console.log("Connect to", wsUrl)
+    connectWs(wsUrl)
+  });
+  disconnectBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!ws) return
+    ws.close()
+    ws = null
+    showConnectView()
+  });
 
-    // startMotorBtn.addEventListener("click", async (e) => {
-    //   e.preventDefault();
-    //   if (!ws) return
-    //   ws.send(JSON.stringify({ action: "move", speedL: 100, speedR: 100 }))
-    // });
-    // stopMotorBtn.addEventListener("click", async (e) => {
-    //   e.preventDefault();
-    //   if (!ws) return
-    //   ws.send(JSON.stringify({ action: "move", speedL: 0, speedR: 0 }))
-    // });
+  // startMotorBtn.addEventListener("click", async (e) => {
+  //   e.preventDefault();
+  //   if (!ws) return
+  //   ws.send(JSON.stringify({ action: "move", speedL: 100, speedR: 100 }))
+  // });
+  // stopMotorBtn.addEventListener("click", async (e) => {
+  //   e.preventDefault();
+  //   if (!ws) return
+  //   ws.send(JSON.stringify({ action: "move", speedL: 0, speedR: 0 }))
+  // });
 
-    startBtn.addEventListener("click", async (e) => {
-       drawDot(1, 1, "S");
-      // startTimer()
-      e.preventDefault();
-      if (!ws) return
-      ws.send(JSON.stringify({ action: "start" }))
-      startTimer()
-    });
+  startBtn.addEventListener("click", async (e) => {
+    drawDot(1, 1, "S");
+    // startTimer()
+    e.preventDefault();
+    if (!ws) return
+    ws.send(JSON.stringify({ action: "start" }))
+    startTimer()
+  });
 
-    stopBtn.addEventListener("click", async (e) => {
-      // drawDot(1, 1, "W");
-      // stopTimer()
-      e.preventDefault();
-      if (!ws) return
-      ws.send(JSON.stringify({ action: "stop" }))
-      stopTimer()
-    });
+  stopBtn.addEventListener("click", async (e) => {
+    // drawDot(1, 1, "W");
+    // stopTimer()
+    e.preventDefault();
+    if (!ws) return
+    ws.send(JSON.stringify({ action: "stop" }))
+    stopTimer()
+  });
 
-    resetBtn.addEventListener("click", async (e) => {
-      // drawDot(2, 1, "E");
-      // stopTimer()
-      // resetTimer()
-      e.preventDefault();
-      if (!ws) return
-      ws.send(JSON.stringify({ action: "reset" }))
-      stopTimer()
-      resetTimer()
-    });
+  resetBtn.addEventListener("click", async (e) => {
+    // drawDot(2, 1, "E");
+    // stopTimer()
+    // resetTimer()
+    e.preventDefault();
+    if (!ws) return
+    ws.send(JSON.stringify({ action: "reset" }))
+    stopTimer()
+    resetTimer()
+  });
 
-    // sensorsBtn.addEventListener("click", async (e) => {
-    //   e.preventDefault();
-    //   if (!ws) return
-    //   ws.send(JSON.stringify({ action: "monitor_sensor" }))
-    // });
-
+  // sensorsBtn.addEventListener("click", async (e) => {
+  //   e.preventDefault();
+  //   if (!ws) return
+  //   ws.send(JSON.stringify({ action: "monitor_sensor" }))
+  // });
+  //
 });

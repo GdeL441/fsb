@@ -5,6 +5,7 @@ use wifi_rs::{prelude::*, WiFi};
 
 #[tauri::command]
 async fn scan() -> Vec<String> {
+    println!("scan");
     let wifi = tokio_wifiscanner::scan()
         .await
         .expect("Cannot scan network");
