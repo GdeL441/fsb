@@ -133,6 +133,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  initScrollSpy();
 });
 
 // Menu click start
@@ -587,3 +588,75 @@ var slideToggle = (target, duration = 0) => {
 
 // =======================================================
 // =======================================================
+
+function initScrollSpy() {
+  const sections = document.querySelectorAll('.pc-content[id]');
+  const navItems = document.querySelectorAll('.pc-navbar .pc-item a');
+  
+  let scrollTimeout;
+  
+  function updateActiveSection() {
+    const scrollPosition = window.scrollY + 100; // Add offset to handle top section better
+
+    // Special case for dashboard at top
+    if (scrollPosition <= 150) {
+      updateActiveMenuItem('dashboard');
+      return;
+    }
+
+    // Check other sections
+    let currentSection = null;
+    sections.forEach(section => {
+      const sectionTop = section.offsetTop;
+      const sectionBottom = sectionTop + section.offsetHeight;
+      
+      if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
+        currentSection = section.id;
+      }
+    });
+
+    if (currentSection) {
+      updateActiveMenuItem(currentSection);
+    }
+  }
+
+  function updateActiveMenuItem(sectionId) {
+    // Remove active class from all items
+    navItems.forEach(item => {
+      item.parentNode.classList.remove('active');
+      if (item.parentNode.parentNode.parentNode.classList.contains('pc-trigger')) {
+        item.parentNode.parentNode.parentNode.classList.remove('pc-trigger');
+      }
+    });
+
+    // Add active class to current item
+    const currentItem = document.querySelector(`.pc-navbar a[href="#${sectionId}"]`);
+    if (currentItem) {
+      currentItem.parentNode.classList.add('active');
+      
+      // Handle submenu if present
+      const parentSubmenu = currentItem.closest('.pc-submenu');
+      if (parentSubmenu) {
+        parentSubmenu.parentNode.classList.add('pc-trigger');
+        parentSubmenu.style.display = 'block';
+      }
+    }
+  }
+
+  // Add scroll event listener
+  window.addEventListener('scroll', function() {
+    if (scrollTimeout) {
+      window.cancelAnimationFrame(scrollTimeout);
+    }
+    scrollTimeout = window.requestAnimationFrame(updateActiveSection);
+  });
+
+  // Initialize on page load
+  updateActiveSection();
+}
+
+// Make sure this is called when the document is ready
+document.addEventListener('DOMContentLoaded', function() {
+  // ... other initialization code ...
+  initScrollSpy();
+});
