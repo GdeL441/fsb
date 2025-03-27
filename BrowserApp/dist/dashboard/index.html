@@ -8,9 +8,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimal-ui">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="description" content="Mantis is made using Bootstrap 5 design framework. Download the free admin template & use it for your project.">
-  <meta name="keywords" content="Mantis, Dashboard UI Kit, Bootstrap 5, Admin Template, Admin Dashboard, CRM, CMS, Bootstrap Admin Template">
-  <meta name="author" content="CodedThemes">
 
   <!-- [Favicon] icon -->
   <link rel="icon" href="../assets/images/favicon.svg" type="image/x-icon"> <!-- [Google Font] Family -->
@@ -52,7 +49,7 @@
       <ul class="pc-navbar">
         <li class="pc-item">
           <a href="../dashboard/index.html" class="pc-link">
-            <span class="pc-micon"><svg class="pc-icon"> <use xlink:href="#custom-cpu-charge"></use></svg></span>
+            <span class="pc-micon"><i class="ti ti-dashboard"></i></span>
             <span class="pc-mtext">Dashboard</span>
           </a>
         </li>
@@ -62,14 +59,14 @@
           <i class="ti ti-dashboard"></i>
         </li>
         <li class="pc-item">
-          <a href="../elements/bc_typography.html" class="pc-link">
-            <span class="pc-micon"><svg class="pc-icon"> <use xlink:href="#custom-setting-2"></use> </svg></span>
+          <a href="../dashboard/settings.html" class="pc-link">
+            <span class="pc-micon"><i class="ti ti-settings"></i></span>
             <span class="pc-mtext">Settings</span>
           </a>
         </li>
         <li class="pc-item">
-          <a href="../elements/bc_color.html" class="pc-link">
-            <span class="pc-micon"><svg class="pc-icon"> <use xlink:href="#custom-link"></use></svg></span>
+          <a href="../dashboard/wifi.html" class="pc-link">
+            <span class="pc-micon"><i class="ti ti-wifi"></i></span>
             <span class="pc-mtext">WiFi Setup</span>
           </a>
         </li>
@@ -102,11 +99,8 @@
         aria-haspopup="false"
         aria-expanded="false"
       >
-
       </a>
-
     </li>
-
   </ul>
 </div>
 <!-- [Mobile Media Block end] -->
@@ -142,11 +136,9 @@
           </div>
         </div>
         <div class="col-md-12 col-xl-8">
-          <div class="d-flex align-items-center justify-content-between mb-3">
-            <h5 class="mb-0">Position view</h5>
-          </div>
           <div class="card">
             <div class="card-body">
+              <h6 class="mb-3 f-w-400 text-muted">Position view</h6>
               <img src="../assets/grid.png" alt="Position Grid" class="img-fluid w-100">
             </div>
           </div>
@@ -155,16 +147,29 @@
         <div class="col-md-12 col-xl-4">
           <div class="card">
             <div class="card-body">
-              <h4 class="mb-3">Timer</h4>
-              <h5 class="mb-3" id="timer">00:00:00</h5>
-              <p class="mb-0 text-muted text-sm">Current elapsed time</p>
+              <h6 class="mb-3 f-w-400 text-muted">Timer</h6>
+              <div class="d-flex flex-column gap-3">
+                <h4 class="mb-0" id="timer">00:00:00</h4>
+              </div>
             </div>
           </div>
-          <div class="card mt-3">
+          <div class="card">
             <div class="card-body">
-              <h6 class="mb-2 f-w-400 text-muted">Status</h6>
-              <h4 class="mb-3" id="pos">Pos: </h4>
-              <h4 class="mb-3" id="heading">Heading:</h4>
+              <h6 class="mb-3 f-w-400 text-muted">Status</h6>
+              <div class="d-flex flex-column gap-3">
+                <h4 class="mb-0" id="pos">Position: </h4>
+                <h4 class="mb-0" id="heading">Heading:</h4>
+                <h4 class="mb-0" id="score">Score:</h4>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body">
+              <h6 class="mb-3 f-w-400 text-muted">Game Progress</h6>
+              <div class="d-flex flex-column gap-3">
+                <h4 class="mb-0" id="towers">Amount of collected towers: </h4>
+                <h4 class="mb-0" id="current-step">Current step:</h4>
+              </div>
             </div>
           </div>
         </div>
@@ -177,7 +182,7 @@
       <div class="row">
         <div class="col-sm my-1">
           <p class="m-0"
-            >FSB Control Software crafted by Team 502 <a href="https://github.com/GdeL441/fsb" target="_blank">Github</a></p
+            >FSB Control Software crafted by Team 502. View us on <a href="https://github.com/GdeL441/fsb" target="_blank">Github</a></p
           >
         </div>
       </div>
