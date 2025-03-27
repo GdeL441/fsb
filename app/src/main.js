@@ -10,7 +10,6 @@ async function connectWs(url) {
     statusDot.classList.remove("bg-danger")
     console.log('WebSocket connection opened')
 
-    hideConnectView()
   };
   ws.onclose = () => {
     console.log('WebSocket connection closed')
@@ -18,7 +17,6 @@ async function connectWs(url) {
     statusDot.classList.add("bg-danger")
     document.getElementById("status").textContent = "Disconnected";
     ws = null
-    showConnectView()
   };
   ws.onmessage = event => {
     const data = JSON.parse(event.data)
@@ -28,7 +26,7 @@ async function connectWs(url) {
       step.textContent = `${data.step}`
     } else if (data.action == "position_updated") {
       position.textContent = JSON.stringify(data.position)
-      heading.textContent = `Heading: ${data.heading} `
+      heading.textContent = data.heading
       console.log("heading", data.heading, "position", data.position)
       drawDot(data.position.x, data.position.y, data.heading)
     } else if (data.action == "finished") {
@@ -36,7 +34,10 @@ async function connectWs(url) {
       stopTimer()
     } else if (data.action == "sensor_values") {
       console.log("Sensor values", data)
-      sensors.textContent = `Left: ${data.L}, Right: ${data.R}, Back: ${data.B} `
+      // sensors.textContent = `Left: ${data.L}, Right: ${data.R}, Back: ${data.B} `
+      document.querySelector("#left-sensor-value").textContent = data.L
+      document.querySelector("#right-sensor-value").textContent = data.R
+      document.querySelector("#back-sensor-value").textContent = data.B
     }
 
   };
@@ -46,21 +47,7 @@ async function connectWs(url) {
     statusDot.classList.remove("bg-success")
     statusDot.classList.add("bg-danger")
     ws = null
-    showConnectView()
   };
-};
-
-function toggleConnectView() {
-  document.getElementById("connect-view").classList.toggle("hide")
-  document.getElementById("dashboard").classList.toggle("hide")
-};
-function showConnectView() {
-  document.getElementById("connect-view").classList.remove("hide")
-  document.getElementById("dashboard").classList.add("hide")
-};
-function hideConnectView() {
-  document.getElementById("connect-view").classList.add("hide")
-  document.getElementById("dashboard").classList.remove("hide")
 };
 
 let timer;
@@ -249,11 +236,7 @@ window.addEventListener("DOMContentLoaded", () => {
   resizeCanvas(); // This will set up the initial canvas size and draw the grid
 
   const connectBtn = document.querySelector("#connect-btn");
-  const startMotorBtn = document.querySelector("#start-motor");
-  const speedInput = document.querySelector("#speed");
   const disconnectBtn = document.querySelector("#disconnect-btn");
-  const stopMotorBtn = document.querySelector("#stop-motor");
-  const sensorsBtn = document.querySelector("#sensors-btn");
 
   const startBtn = document.querySelector("#start");
   const stopBtn = document.querySelector("#stop");
@@ -264,7 +247,6 @@ window.addEventListener("DOMContentLoaded", () => {
   position = document.querySelector("#position")
   heading = document.querySelector("#heading_")
   step = document.querySelector("#step")
-  sensors = document.querySelector("#sensors")
   statusDot = document.querySelector("#status-dot")
 
   connectBtn.addEventListener("click", async (e) => {
@@ -280,22 +262,10 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!ws) return
     ws.close()
     ws = null
-    showConnectView()
   });
 
-  // startMotorBtn.addEventListener("click", async (e) => {
-  //   e.preventDefault();
-  //   if (!ws) return
-  //   ws.send(JSON.stringify({ action: "move", speedL: 100, speedR: 100 }))
-  // });
-  // stopMotorBtn.addEventListener("click", async (e) => {
-  //   e.preventDefault();
-  //   if (!ws) return
-  //   ws.send(JSON.stringify({ action: "move", speedL: 0, speedR: 0 }))
-  // });
-
   startBtn.addEventListener("click", async (e) => {
-    drawDot(1, 1, "S");
+    // drawDot(1, 1, "S");
     // startTimer()
     e.preventDefault();
     if (!ws) return
@@ -323,10 +293,9 @@ window.addEventListener("DOMContentLoaded", () => {
     resetTimer()
   });
 
-  // sensorsBtn.addEventListener("click", async (e) => {
-  //   e.preventDefault();
-  //   if (!ws) return
-  //   ws.send(JSON.stringify({ action: "monitor_sensor" }))
-  // });
-  //
+  sensorsBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!ws) return
+    ws.send(JSON.stringify({ action: "monitor_sensor" }))
+  });
 });
