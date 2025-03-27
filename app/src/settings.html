@@ -108,49 +108,84 @@
   <div class="pc-container">
     <div class="pc-content">
       <!--[ Main Content ] start-->
-      <div class="row">
-        <!--[ sensors ] start-->
-        <div class="col-sm-12">
-          <div class="card">
+      <div class="row g-4">
+        <div class="col-sm-6 h-100">
+          <div class="card h-100">
             <div class="card-header">
-              <h5>Sensors</h5>
-              <p>Sensor settings will come here</p>
+              <h5>Sensor Thresholds</h5>
+              <div class="d-flex flex-column gap-2 mt-3">
+                <div class="d-flex align-items-center gap-3">
+                  <label for="left-sensor-threshold" class="mb-0" style="width: 120px; margin-bottom: 102px;;">Left Sensor:</label>
+                  <input type="number" class="form-control" id="left-sensor-threshold" style="width: 100px;">
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                  <label for="right-sensor-threshold" class="mb-0" style="width: 120px;">Right Sensor:</label>
+                  <input type="number" class="form-control" id="right-sensor-threshold" style="width: 100px;">
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                  <label for="back-sensor-threshold" class="mb-0" style="width: 120px;">Back Sensor:</label>
+                  <input type="number" class="form-control" id="back-sensor-threshold" style="width: 100px;">
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <!--[ sensors ] end-->
-        <!--[ pid ] start-->
-        <div class="col-sm-12">
-          <div class="card">
+        <div class="col-sm-6 h-100">
+          <div class="card h-100">
             <div class="card-header">
-              <h5>Cource Correction settings</h5>
-              <p>PID Settings come here</p>
+              <div class="d-flex justify-content-between align-items-center">
+                <h5>Sensor Monitor</h5>
+                <button id="monitor-btn" class="btn btn-primary" style="width: 150px;">Start Monitoring</button>
+              </div>
+              <div class="d-flex flex-column gap-2 mt-3">
+                <div class="d-flex align-items-center gap-3">
+                  <label class="mb-0" style="width: 120px;">Left Value:</label>
+                  <span id="left-sensor-value" class="form-control-plaintext" style="width: 100px;">--</span>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                  <label class="mb-0" style="width: 120px;">Right Value:</label>
+                  <span id="right-sensor-value" class="form-control-plaintext" style="width: 100px;">--</span>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                  <label class="mb-0" style="width: 120px;">Back Value:</label>
+                  <span id="back-sensor-value" class="form-control-plaintext" style="width: 100px;">--</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <!--[ pid ] end-->
-        <!--[ settings ] start-->
-        <div class="col-sm-12">
-          <div class="card">
-            <div class="card-header">
-              <h5>Settings</h5>
-              <p>More settings will come here</p>
-            </div>
-          </div>
-        </div>
-        <!--[ settings ] end-->
-        <!--[ monitor ] start-->
-        <div class="col-sm-12">
-          <div class="card">
-            <div class="card-header">
-              <h5>Monitor</h5>
-              <p>Here you will be able to monitor the FSB</p>
-            </div>
-          </div>
-        </div>
-        <!--[ settings ] end-->
       </div>
-      <!--[ Main Content ] end-->
+      <!--[ sensors ] end-->
+      <!--[ pid ] start-->
+      <div class="col-sm-12">
+        <div class="card">
+          <div class="card-header">
+            <h5>Cource Correction settings</h5>
+            <p>PID Settings come here</p>
+          </div>
+        </div>
+      </div>
+      <!--[ pid ] end-->
+      <!--[ settings ] start-->
+      <div class="col-sm-12">
+        <div class="card">
+          <div class="card-header">
+            <h5>Settings</h5>
+            <p>More settings will come here</p>
+          </div>
+        </div>
+      </div>
+      <!--[ settings ] end-->
+      <!--[ monitor ] start-->
+      <div class="col-sm-12">
+        <div class="card">
+          <div class="card-header">
+            <h5>Monitor</h5>
+            <p>Here you will be able to monitor the FSB</p>
+          </div>
+        </div>
+      </div>
+      <!--[ settings ] end-->
     </div>
   </div>
   <!--[ Main Content ] end-->
