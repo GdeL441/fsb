@@ -79,7 +79,7 @@
   </nav>
   <!-- [ Sidebar Menu ] end --> <!-- [ Header Topbar ] start -->
   <header class="pc-header">
-    <div class="header-wrapper"> <!-- [Mobile Media Block] start -->
+    <div class="header-wrapper" style="height: 70px; display: flex; align-items: center;"> <!-- [Mobile Media Block] start -->
       <div class="me-auto pc-mob-drp">
         <ul class="list-unstyled">
           <!-- ======= Menu collapse Icon ===== -->
@@ -101,10 +101,14 @@
         </ul>
       </div>
       <!-- [Mobile Media Block end] -->
-    </div>
-    </li>
-    </ul>
-    </div>
+      <div class="ms-auto pe-4">
+        <div class="d-flex align-items-center gap-2">
+          <span id="status">Disconnected</span>
+          <!-- bg-danger or bg-success-->
+          <span class="status-dot bg-danger" id="status-dot"
+            style="width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
+        </div>
+      </div>
     </div>
   </header>
   <!-- [ Header ] end -->
@@ -128,12 +132,6 @@
                   <button type="button" class="btn btn-danger" id="stop">Stop</button>
                   <button type="button" class="btn btn-warning" id="reset">Reset</button>
                   <button type="button" class="btn btn-secondary" id="disconnect-btn">Disconnect</button>
-                </div>
-                <div class="d-flex align-items-center gap-2 ms-auto">
-                  <span id="status">Disconnected</span>
-                  <!-- bg-danger or bg-success-->
-                  <span class="status-dot bg-danger" id="status-dot"
-                    style="width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
                 </div>
               </div>
             </div>
@@ -188,7 +186,7 @@
       <div class="row">
         <div class="col-sm my-1">
           <p class="m-0">FSB Control Software crafted by Team 502. View us on <a href="https://github.com/GdeL441/fsb"
-              target="_blank">Github</a></p>
+              target="_blank">GitHub</a></p>
         </div>
       </div>
     </div>

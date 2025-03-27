@@ -79,7 +79,7 @@
   </nav>
   <!-- [ Sidebar Menu ] end --> <!-- [ Header Topbar ] start -->
   <header class="pc-header">
-    <div class="header-wrapper"> <!-- [Mobile Media Block] start -->
+    <div class="header-wrapper" style="height: 70px; display: flex; align-items: center;"> <!-- [Mobile Media Block] start -->
       <div class="me-auto pc-mob-drp">
         <ul class="list-unstyled">
           <!-- ======= Menu collapse Icon ===== -->
@@ -101,7 +101,15 @@
         </ul>
       </div>
       <!-- [Mobile Media Block end] -->
-      <!-- [Mobile Media Block end] -->
+      <div class="ms-auto pe-4">
+        <div class="d-flex align-items-center gap-2">
+          <span id="status">Disconnected</span>
+          <!-- bg-danger or bg-success-->
+          <span class="status-dot bg-danger" id="status-dot"
+            style="width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
+        </div>
+      </div>
+    </div>
   </header>
   <!-- [ Header ] end -->
   <!--[ Main Content ] start-->

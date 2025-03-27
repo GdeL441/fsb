@@ -78,7 +78,7 @@
   </nav>
   <!-- [ Sidebar Menu ] end --> <!-- [ Header Topbar ] start -->
   <header class="pc-header">
-    <div class="header-wrapper"> <!-- [Mobile Media Block] start -->
+    <div class="header-wrapper" style="height: 70px; display: flex; align-items: center;"> <!-- [Mobile Media Block] start -->
       <div class="me-auto pc-mob-drp">
         <ul class="list-unstyled">
           <!-- ======= Menu collapse Icon ===== -->
@@ -100,8 +100,15 @@
         </ul>
       </div>
       <!-- [Mobile Media Block end] -->
-      <!-- [Mobile Media Block end] -->
-
+      <div class="ms-auto pe-4">
+        <div class="d-flex align-items-center gap-2">
+          <span id="status">Disconnected</span>
+          <!-- bg-danger or bg-success-->
+          <span class="status-dot bg-danger" id="status-dot"
+            style="width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
+        </div>
+      </div>
+    </div>
   </header>
   <!-- [ Header ] end -->
   <!--[ Main Content ] start-->
@@ -109,11 +116,14 @@
     <div class="pc-content">
       <!--[ Main Content ] start-->
       <div class="row g-4">
-        <div class="col-sm-6 h-100">
-          <div class="card h-100">
-            <div class="card-header">
-              <h5>Sensor Thresholds</h5>
-              <div class="d-flex flex-column gap-2 mt-3">
+        <div class="col-sm-6 d-flex">
+          <div class="card w-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">Sensor Thresholds</h5>
+              <button id="apply-thresholds-btn" class="btn btn-primary" style="width: 150px;">Apply all</button>
+            </div>
+            <div class="card-body">
+              <div class="d-flex flex-column gap-2">
                 <div class="d-flex align-items-center gap-3">
                   <label for="left-sensor-threshold" class="mb-0" style="width: 120px;">Left Sensor:</label>
                   <input type="number" class="form-control" id="left-sensor-threshold" style="width: 100px;">
@@ -130,14 +140,15 @@
             </div>
           </div>
         </div>
-        <div class="col-sm-6 h-100">
-          <div class="card h-100">
-            <div class="card-header">
-              <div class="d-flex justify-content-between align-items-center">
-                <h5>Sensor Monitor</h5>
-                <button id="monitor-btn" class="btn btn-primary" style="width: 150px;">Start Monitoring</button>
-              </div>
-              <div class="d-flex flex-column gap-2 mt-3">
+        <div class="col-sm-6 d-flex">
+          <div class="card w-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">Sensor Monitor</h5>
+              <!-- change to button danger and stop monitoring -->
+              <button id="monitor-btn" class="btn btn-success" style="width: 150px;">Start Monitoring</button>
+            </div>
+            <div class="card-body">
+              <div class="d-flex flex-column gap-2">
                 <div class="d-flex align-items-center gap-3">
                   <label class="mb-0" style="width: 120px;">Left Value:</label>
                   <span id="left-sensor-value" class="form-control-plaintext" style="width: 100px;">--</span>
@@ -156,26 +167,45 @@
         </div>
       </div>
       <!--[ sensors ] end-->
-      <!--[ pid ] start-->
-      <div class="col-sm-12">
-        <div class="card">
-          <div class="card-header">
-            <h5>Cource Correction settings</h5>
-            <p>PID Settings come here</p>
+      <!-- PID and Settings Row -->
+      <div class="row g-4">
+        <div class="col-sm-6 d-flex">
+          <div class="card w-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">PID Parameters</h5>
+            </div>
+            <div class="card-body">
+              <div class="d-flex flex-column gap-2">
+                <div class="d-flex align-items-center gap-3">
+                  <label for="kp-value" class="mb-0" style="width: 180px;">Proportional Constant (Kp):</label>
+                  <input type="number" class="form-control" id="kp-value" style="width: 100px;">
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                  <label for="ki-value" class="mb-0" style="width: 180px;">Integral Constant (Ki):</label>
+                  <input type="number" class="form-control" id="ki-value" style="width: 100px;">
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                  <label for="kd-value" class="mb-0" style="width: 180px;">Derivative Constant (Kd):</label>
+                  <input type="number" class="form-control" id="kd-value" style="width: 100px;">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-sm-6 d-flex">
+          <div class="card w-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0">Settings</h5>
+            </div>
+            <div class="card-body">
+              <div class="d-flex flex-column gap-2">
+                <p>More settings will come here</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
       <!--[ pid ] end-->
-      <!--[ settings ] start-->
-      <div class="col-sm-12">
-        <div class="card">
-          <div class="card-header">
-            <h5>Settings</h5>
-            <p>More settings will come here</p>
-          </div>
-        </div>
-      </div>
-      <!--[ settings ] end-->
       <!--[ monitor ] start-->
       <div class="col-sm-12">
         <div class="card">
@@ -194,7 +224,7 @@
       <div class="row">
         <div class="col-sm my-1">
           <p class="m-0">FSB Control Software crafted by Team 502. View us on <a href="https://github.com/GdeL441/fsb"
-              target="_blank">Github</a></p>
+              target="_blank">GitHub</a></p>
         </div>
       </div>
     </div>
