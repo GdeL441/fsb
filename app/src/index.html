@@ -25,6 +25,7 @@
   <!-- [Template CSS Files] -->
   <link rel="stylesheet" href="assets/css/style.css" id="main-style-link">
   <link rel="stylesheet" href="assets/css/style-preset.css">
+  <link rel="stylesheet" href="./styles.css">
 
 </head>
 <!-- [Head] end -->
@@ -131,7 +132,7 @@
                 <div class="d-flex align-items-center gap-2 ms-auto">
                   <span id="status">Disconnected</span>
                   <!-- bg-danger or bg-success-->
-                  <span class="status-dot bg-danger"
+                  <span class="status-dot bg-danger" id="status-dot"
                     style="width: 10px; height: 10px; border-radius: 50%; display: inline-block;"></span>
                 </div>
               </div>
@@ -143,7 +144,9 @@
             <div class="card-body">
               <h6 class="mb-3 f-w-400 text-muted">Position view</h6>
               <!-- <img src="assets/grid.png" alt="Position Grid" class="img-fluid w-100"> -->
-              <canvas id="gridCanvas"></canvas>
+              <div class="grid-layout">
+                <canvas id="gridCanvas"></canvas>
+              </div>
             </div>
           </div>
         </div>
@@ -161,9 +164,9 @@
             <div class="card-body">
               <h6 class="mb-3 f-w-400 text-muted">Status</h6>
               <div class="d-flex flex-column gap-3">
-                <h4 class="mb-0" id="pos">Position: </h4>
-                <h4 class="mb-0" id="heading">Heading:</h4>
-                <h4 class="mb-0" id="score">Score:</h4>
+                <h4 class="mb-0" id="pos">Position: <span id="position"></span></h4>
+                <h4 class="mb-0" id="heading">Heading: <span id="heading_"></span></h4>
+                <h4 class=" mb-0" id="score">Score:</h4>
               </div>
             </div>
           </div>
@@ -172,7 +175,7 @@
               <h6 class="mb-3 f-w-400 text-muted">Game Progress</h6>
               <div class="d-flex flex-column gap-3">
                 <h4 class="mb-0" id="towers">Amount of collected towers: </h4>
-                <h4 class="mb-0" id="step">Current step:</h4>
+                <h4 class="mb-0">Current step: <span id="step"></span></h4>
               </div>
             </div>
           </div>
