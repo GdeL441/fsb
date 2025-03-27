@@ -127,9 +127,32 @@
                 </div>
               </div>
             </div>
-            <div class="card-body text-center">
-              <h4>Mats hier moet gij nog werk in steken</h4>
+            <div class="card-body">
+              <div id="loading" class="text-center d-none">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Scanning for networks...</p>
+              </div>
+              
+              <template id="wifi-network-template">
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                  <span class="network-name"></span>
+                  <button class="btn btn-primary btn-sm">
+                    <i class="ti ti-plug me-1"></i>Connect
+                  </button>
+                </div>
+              </template>
 
+              <div id="wifi-results">
+                <h5 class="mb-3">Available Networks</h5>
+                <div class="list-group" id="wifi-ssids">
+                  <!-- WiFi networks will be inserted here -->
+                </div>
+                <p id="no-networks" class="text-muted text-center mt-3 d-none">
+                  No networks found. Try scanning again.
+                </p>
+              </div>
             </div>
           </div>
         </div>

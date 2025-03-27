@@ -64,28 +64,44 @@ function hideConnectView() {
 };
 
 async function scan() {
-  loading.style.display = "block"
-  const wifiSSIDs = await invoke("scan");
-  loading.style.display = "none"
-
-  // Show result in html
-  ssids.innerHTML = ""
-  for (const ssid of wifiSSIDs) {
-    const li = document.createElement("li")
-    const button = document.createElement("button")
-    const span = document.createElement("span")
-    span.innerText = `${ssid} `
-    button.innerText = "Connect"
-    button.addEventListener("click", async () => {
-      // const _wsUrl = await invoke("connect", { ssid })
-      const wsUrl = `ws://${ipInput.value}/ws`
-      console.log("connected to wifi", wsUrl)
-      if (wsUrl) connectWs(wsUrl)
+  const loading = document.getElementById('loading');
+  const noNetworks = document.getElementById('no-networks');
+  const ssidsList = document.getElementById('wifi-ssids');
+  const template = document.getElementById('wifi-network-template');
+  
+  loading.classList.remove('d-none');
+  ssidsList.innerHTML = '';
+  noNetworks.classList.add('d-none');
+  
+  try {
+    const wifiSSIDs = await invoke("scan");
+    loading.classList.add('d-none');
+    
+    if (wifiSSIDs.length === 0) {
+      noNetworks.classList.remove('d-none');
+      return;
+    }
+    
+    wifiSSIDs.forEach(ssid => {
+      const networkItem = template.content.cloneNode(true);
+      networkItem.querySelector('.network-name').textContent = ssid;
+      
+      const connectBtn = networkItem.querySelector('button');
+      connectBtn.addEventListener('click', async () => {
+        const wsUrl = `ws://${ipInput.value}/ws`;
+        console.log("Connecting to WiFi:", ssid, "WebSocket URL:", wsUrl);
+        if (wsUrl) connectWs(wsUrl);
+      });
+      
+      ssidsList.appendChild(networkItem);
     });
-    li.appendChild(span)
-    li.appendChild(button)
-    ssids.appendChild(li)
-  };
+    
+  } catch (error) {
+    console.error('Error scanning networks:', error);
+    loading.classList.add('d-none');
+    noNetworks.textContent = 'Error scanning networks. Please try again.';
+    noNetworks.classList.remove('d-none');
+  }
 }
 
 let timer;
