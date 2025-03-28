@@ -11,3 +11,6 @@ class Sensor:
 
     def value(self):  
         return self.pin.value 
+
+    def set_threshold(self, new_threshold):
+        self.threshold = new_threshold

@@ -102,7 +102,7 @@ def connect_client(request: Request):
 
 # If there is a connected websocket connection, check if there is a new incoming message
 def poll_websocket():
-    global started, current_step, error_sum, last_error, MONITORING_SENSOR
+    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd
     assert websocket != None
 
     data = websocket.receive(fail_silently=True)
@@ -117,6 +117,17 @@ def poll_websocket():
             reset_state()
         elif data["action"] == "monitor_sensor":
             MONITORING_SENSOR = not MONITORING_SENSOR
+        elif data["action"] == "set_threshold":
+            print("update sensor thresholds", data)
+            L_overline.set_threshold(data["L"])
+            R_overline.set_threshold(data["R"])
+            B_overline.set_threshold(data["B"])
+        elif data["action"] == "update_pid":
+            print("update PID parameters", data)
+            Kp = data["P"]
+            Ki = data["I"]
+            Kd = data["D"]
+
         # TODO
         elif data["action"] == "move":
             print(data["speedL"], data["speedR"])
