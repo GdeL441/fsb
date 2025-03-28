@@ -6,7 +6,7 @@ from analogio import AnalogIn  # type: ignore
 import socketpool  # type: ignore
 import wifi  # type: ignore
 from adafruit_httpserver import Server, Request, Response, GET, Websocket  # type: ignore
-from modules import Motors, Sensors, Ultrasonic
+from modules import Motors, Sensors, Ultrasonic, Statusled
 
 # import mdns # type: ignore
 # import pwmio # type: ignore
@@ -15,13 +15,12 @@ from modules import Motors, Sensors, Ultrasonic
 # Initialize sensors
 # Using GP26, 27 and 28
 # 'Sensor.status()' returns True of False based on threshold
-L_overline = Sensors.Sensor(board.GP26, 40000)
-R_overline = Sensors.Sensor(board.GP27, 45000)
+L_overline = Sensors.Sensor(board.GP26, 35000)
+R_overline = Sensors.Sensor(board.GP27, 40000)
 B_overline = Sensors.Sensor(board.GP28, 30000)
 
 # Initialize status sensor (To Be Replaced by RGB Strip)
-status_led = digitalio.DigitalInOut(board.LED)
-status_led.direction = digitalio.Direction.OUTPUT
+status_led = Statusled.Statusled(board.GP7)
 
 # Initaliaze Motors
 Motor_Left = Motors.Motor(board.GP2, board.GP3)
@@ -157,6 +156,7 @@ def turn_right(left_speed=50):
 def stop_motors():
     Motor_Right.stop()
     Motor_Left.stop()
+    
 
 
 # whenever the car advances on the grid, update its position and heading for monitoring
@@ -245,6 +245,7 @@ while True:
     # print(f"Sensor back: {B_overline.status()}")
 
     if started == True:
+        status_led.next_object()
         if collision.detect():
             print("Collision Detected! Resetting...")
             reset_state()
@@ -314,10 +315,12 @@ while True:
             send_sensor_values()
 
         stop_motors()
+        status_led.turn_off()
+        
 
     server.poll()
 
     if websocket is not None:
         poll_websocket()
 
-    time.sleep(0.05)
+    time.sleep(0.01)

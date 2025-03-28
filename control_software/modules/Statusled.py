@@ -1,48 +1,60 @@
-import pwmio # type: ignore
-import digitalio # type: ignore
+import neopixel # type: ignore
+import board # type: ignore
 from math import sin, pi
 import time
 
 class Statusled:
-    def __init__(self, red_pin, green_pin, blue_pin, white_pin):
-        self.red = pwmio.PWMOut(red_pin, frequency=1000)
-        self.green = pwmio.PWMOut(green_pin, frequency=1000)
-        self.blue = pwmio.PWMOut(blue_pin, frequency=1000)
-        self.white = pwmio.PWMOut(white_pin, frequency=1000)
-
+    def __init__(self, pin):
+        self.NUM_PIXELS = 35
+        self.pixels = neopixel.NeoPixel(pin, self.NUM_PIXELS, brightness=0.3, auto_write=False)
+        
     def turn_off(self):
-        self.red.duty_cycle = 0
-        self.green.duty_cycle = 0
-        self.blue.duty_cycle = 0
-        self.white.duty_cycle = 0
+        self.pixels.fill((0, 0, 0))
+        self.pixels.show()
 
     def next_object(self):
         intensity = white_green_sine()
-        self.red.duty_cycle = intensity_to_duty_cycle(intensity)
-        self.green.duty_cycle = intensity_to_duty_cycle(1)
-        self.blue.duty_cycle = intensity_to_duty_cycle(intensity)
-        self.white.duty_cycle = intensity_to_duty_cycle(intensity)
+        # Create breathing white-green effect
+        for i in range(self.NUM_PIXELS):
+            self.pixels[i] = (
+                int(255 * intensity),  # R
+                255,                   # G
+                int(255 * intensity)   # B
+            )
+        self.pixels.show()
 
     def collection(self):
         intensity = cyclic()
-        self.red.duty_cycle = intensity_to_duty_cycle(intensity)
-        self.green.duty_cycle = intensity_to_duty_cycle(intensity / 2)
-        self.blue.duty_cycle = intensity_to_duty_cycle(0)
-        self.white.duty_cycle = intensity_to_duty_cycle(0)
+        # Orange/yellow pulsing
+        color = (
+            int(255 * intensity),      # R
+            int(128 * intensity),      # G
+            0                          # B
+        )
+        self.pixels.fill(color)
+        self.pixels.show()
 
     def reverse(self):
         intensity = cyclic()
-        self.red.duty_cycle = intensity_to_duty_cycle(intensity)
-        self.green.duty_cycle = intensity_to_duty_cycle(0)
-        self.blue.duty_cycle = intensity_to_duty_cycle(0)
-        self.white.duty_cycle = intensity_to_duty_cycle(0)
+        # Red pulsing
+        color = (
+            int(255 * intensity),  # R
+            0,                     # G
+            0                      # B
+        )
+        self.pixels.fill(color)
+        self.pixels.show()
 
     def return_home(self):
         intensity = cyclic()
-        self.red.duty_cycle = intensity_to_duty_cycle(0)
-        self.green.duty_cycle = intensity_to_duty_cycle(0)
-        self.blue.duty_cycle = intensity_to_duty_cycle(intensity)
-        self.white.duty_cycle = intensity_to_duty_cycle(0)
+        # Blue pulsing
+        color = (
+            0,                     # R
+            0,                     # G
+            int(255 * intensity)   # B
+        )
+        self.pixels.fill(color)
+        self.pixels.show()
 
 def white_green_sine():
     t = time.monotonic()
@@ -54,7 +66,3 @@ def cyclic():
         return 1
     else:
         return 0
-    
-def intensity_to_duty_cycle(intensity):
-    duty_cycle = int(intensity * 65535)
-    return duty_cycle
