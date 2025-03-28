@@ -222,7 +222,7 @@ def next_step():
         print("Done, reset")
         reset_state()
         data = {
-            "action": "finished ",
+            "action": "finished",
         }
 
         if websocket != None:

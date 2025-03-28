@@ -5,7 +5,7 @@ let ws = null;
 function updateConnectButton(connected) {
   const connectBtn = document.getElementById("connect-btn");
   const connectBtnText = document.getElementById("connect-btn-text");
-  
+
   if (connected) {
     connectBtn.classList.remove("btn-success");
     connectBtn.classList.add("btn-danger");
@@ -298,9 +298,11 @@ window.addEventListener('resize', () => {
 window.addEventListener("DOMContentLoaded", () => {
   canvas = document.getElementById("gridCanvas");
   resizeCanvas(); // This will set up the initial canvas size and draw the grid
+  loadThresholds()
+  loadPID()
 
   const connectBtn = document.querySelector("#connect-btn");
-  const disconnectBtn = document.querySelector("#disconnect-btn");
+  // const disconnectBtn = document.querySelector("#disconnect-btn");
   const scanBtn = document.querySelector("#scan-btn")
 
   const startBtn = document.querySelector("#start");
@@ -308,6 +310,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const resetBtn = document.querySelector("#reset");
   const sensorsBtn = document.querySelector("#monitor-btn")
   const applyThresholdBtn = document.querySelector("#apply-thresholds-btn")
+  const applyPIDBtn = document.querySelector("#apply-pid-btn")
 
   loading = document.querySelector("#loading")
   loading.classList.add("d-none")
@@ -333,12 +336,12 @@ window.addEventListener("DOMContentLoaded", () => {
     console.log("Connect to", wsUrl);
     connectWs(wsUrl);
   });
-  disconnectBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
-    if (!ws) return
-    ws.close()
-    ws = null
-  });
+  // disconnectBtn.addEventListener("click", async (e) => {
+  //   e.preventDefault();
+  //   if (!ws) return
+  //   ws.close()
+  //   ws = null
+  // });
 
   startBtn.addEventListener("click", async (e) => {
     // drawDot(1, 1, "S");
@@ -388,6 +391,46 @@ window.addEventListener("DOMContentLoaded", () => {
     let L = Number(document.querySelector("#left-sensor-threshold").value)
     let R = Number(document.querySelector("#right-sensor-threshold").value)
     let B = Number(document.querySelector("#back-sensor-threshold").value)
+    // Save to localStorage
+    localStorage.setItem("thresholds", JSON.stringify({ L, R, B }));
+
     ws.send(JSON.stringify({ action: "set_threshold", L, R, B }))
   });
+  applyPIDBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!ws) return
+    let P = Number(document.querySelector("#kp-value").value)
+    let I = Number(document.querySelector("#ki-value").value)
+    let D = Number(document.querySelector("#kd-value").value)
+    // Save to localStorage
+    localStorage.setItem("pid", JSON.stringify({ P, I, D }));
+
+    ws.send(JSON.stringify({ action: "update_pid", P, I, D }))
+  });
 });
+
+function loadThresholds() {
+  let savedThresholds = localStorage.getItem("thresholds");
+  console.log(savedThresholds)
+
+  if (savedThresholds) {
+    let { L, R, B } = JSON.parse(savedThresholds);
+
+    document.querySelector("#left-sensor-threshold").value = L;
+    document.querySelector("#right-sensor-threshold").value = R;
+    document.querySelector("#back-sensor-threshold").value = B;
+  }
+}
+
+function loadPID() {
+  let savedPID = localStorage.getItem("pid");
+  console.log(savedPID)
+
+  if (savedPID) {
+    let { P, I, D } = JSON.parse(savedPID);
+
+    document.querySelector("#kp-value").value = P
+    document.querySelector("#ki-value").value = I
+    document.querySelector("#kd-value").value = D
+  }
+}
