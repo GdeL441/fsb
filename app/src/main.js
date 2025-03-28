@@ -1,23 +1,42 @@
 const { invoke } = window.__TAURI__.core;
 
-let ws = null
+let ws = null;
+
+function updateConnectButton(connected) {
+  const connectBtn = document.getElementById("connect-btn");
+  const connectBtnText = document.getElementById("connect-btn-text");
+  
+  if (connected) {
+    connectBtn.classList.remove("btn-success");
+    connectBtn.classList.add("btn-danger");
+    connectBtnText.textContent = "Close WebSocket Connection";
+  } else {
+    connectBtn.classList.remove("btn-danger");
+    connectBtn.classList.add("btn-success");
+    connectBtnText.textContent = "Open WebSocket Connection";
+  }
+}
+
 async function connectWs(url) {
   ws = new WebSocket(url);
 
   ws.onopen = () => {
     document.getElementById("status").textContent = "Connected";
-    statusDot.classList.add("bg-success")
-    statusDot.classList.remove("bg-danger")
-    console.log('WebSocket connection opened')
+    statusDot.classList.add("bg-success");
+    statusDot.classList.remove("bg-danger");
+    updateConnectButton(true);
+    console.log('WebSocket connection opened');
+  };
 
-  };
   ws.onclose = () => {
-    console.log('WebSocket connection closed')
-    statusDot.classList.remove("bg-success")
-    statusDot.classList.add("bg-danger")
+    console.log('WebSocket connection closed');
+    statusDot.classList.remove("bg-success");
+    statusDot.classList.add("bg-danger");
     document.getElementById("status").textContent = "Disconnected";
-    ws = null
+    updateConnectButton(false);
+    ws = null;
   };
+
   ws.onmessage = event => {
     const data = JSON.parse(event.data)
     console.log("data received from websocket", data)
@@ -41,11 +60,12 @@ async function connectWs(url) {
 
   };
   ws.onerror = error => {
-    console.error(error)
+    console.error(error);
     document.getElementById("status").textContent = "Disconnected";
-    statusDot.classList.remove("bg-success")
-    statusDot.classList.add("bg-danger")
-    ws = null
+    statusDot.classList.remove("bg-success");
+    statusDot.classList.add("bg-danger");
+    updateConnectButton(false);
+    ws = null;
   };
 };
 async function scan() {
@@ -305,11 +325,13 @@ window.addEventListener("DOMContentLoaded", () => {
   })
   connectBtn.addEventListener("click", async (e) => {
     e.preventDefault();
-    // const url = await invoke("get_url");
-
-    const wsUrl = `ws://${ipInput.value}/ws`
-    console.log("Connect to", wsUrl)
-    connectWs(wsUrl)
+    if (ws) {
+      ws.close();
+      return;
+    }
+    const wsUrl = `ws://${ipInput.value}/ws`;
+    console.log("Connect to", wsUrl);
+    connectWs(wsUrl);
   });
   disconnectBtn.addEventListener("click", async (e) => {
     e.preventDefault();
