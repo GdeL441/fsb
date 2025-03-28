@@ -38,7 +38,7 @@ time_since_next_step = time.monotonic()
 MONITORING_SENSOR = False
 
 # Initialize robot position/heading and grid
-robot_pos = {"x": 1, "y": 1}
+robot_pos = {"x": 6, "y": 0}
 DIRECTIONS = ["N", "E", "S", "W"]
 robot_heading = "N"  # "N" "E" "S" "W"
 
@@ -131,7 +131,7 @@ print("Server started, open for websocket connection")
 # Reset the cars state, this will be triggered either by the frontend or
 # when the car ran into a wall
 def reset_state():
-    global started, current_step, error_sum, last_error, intersection_detected
+    global started, current_step, error_sum, last_error, intersection_detected, robot_pos, robot_heading
     print("Reset state")
     started = False
     stop_motors()
@@ -139,6 +139,8 @@ def reset_state():
     error_sum = 0
     last_error = 0
     intersection_detected = False
+    robot_pos = {"x": 6, "y": 0}
+    robot_heading = "N"  # "N" "E" "S" "W"
 
 
 def turn_left(right_speed=50):
@@ -168,9 +170,9 @@ def update_pos_and_heading():
     if steps[current_step] == "FORWARD":
         # Move forward based on the current heading
         if robot_heading == "N":
-            robot_pos["y"] -= 1
-        elif robot_heading == "S":
             robot_pos["y"] += 1
+        elif robot_heading == "S":
+            robot_pos["y"] -= 1
         elif robot_heading == "E":
             robot_pos["x"] += 1
         elif robot_heading == "W":

@@ -145,8 +145,8 @@ let cellSize; // Make cellSize dynamic
 
 // Add state variables to track current position
 let currentPosition = {
-  x: null,
-  y: null,
+  x: 6,
+  y: 0,
   direction: null
 };
 
@@ -344,6 +344,12 @@ window.addEventListener("DOMContentLoaded", () => {
     ws.send(JSON.stringify({ action: "reset" }))
     stopTimer()
     resetTimer()
+    currentPosition = {
+      x: 6,
+      y: 0,
+      direction: null
+    };
+        drawGrid()
   });
 
   sensorsBtn.addEventListener("click", async (e) => {
