@@ -34,7 +34,6 @@ async function connectWs(url) {
       stopTimer()
     } else if (data.action == "sensor_values") {
       console.log("Sensor values", data)
-      // sensors.textContent = `Left: ${data.L}, Right: ${data.R}, Back: ${data.B} `
       document.querySelector("#left-sensor-value").textContent = data.L
       document.querySelector("#right-sensor-value").textContent = data.R
       document.querySelector("#back-sensor-value").textContent = data.B
@@ -288,6 +287,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const stopBtn = document.querySelector("#stop");
   const resetBtn = document.querySelector("#reset");
   const sensorsBtn = document.querySelector("#monitor-btn")
+  const applyThresholdBtn = document.querySelector("#apply-thresholds-btn")
 
   loading = document.querySelector("#loading")
   loading.classList.add("d-none")
@@ -298,6 +298,7 @@ window.addEventListener("DOMContentLoaded", () => {
   heading = document.querySelector("#heading_")
   step = document.querySelector("#step")
   statusDot = document.querySelector("#status-dot")
+
 
   scanBtn.addEventListener("click", (e) => {
     scan()
@@ -349,7 +350,7 @@ window.addEventListener("DOMContentLoaded", () => {
       y: 0,
       direction: null
     };
-        drawGrid()
+    drawGrid()
   });
 
   sensorsBtn.addEventListener("click", async (e) => {
@@ -357,5 +358,14 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!ws) return
     console.log("start monitor sensor")
     ws.send(JSON.stringify({ action: "monitor_sensor" }))
+  });
+
+  applyThresholdBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (!ws) return
+    let L = Number(document.querySelector("#left-sensor-threshold").value)
+    let R = Number(document.querySelector("#right-sensor-threshold").value)
+    let B = Number(document.querySelector("#back-sensor-threshold").value)
+    ws.send(JSON.stringify({ action: "set_threshold", L, R, B }))
   });
 });
