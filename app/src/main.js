@@ -88,6 +88,11 @@ async function scan() {
   }
 }
 
+async function connectToWifi(ssid) {
+  const res = await invoke("connect", { ssid })
+  console.log(res)
+};
+
 
 
 let timer;
@@ -344,6 +349,7 @@ window.addEventListener("DOMContentLoaded", () => {
   sensorsBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     if (!ws) return
+    console.log("start monitor sensor")
     ws.send(JSON.stringify({ action: "monitor_sensor" }))
   });
 });
