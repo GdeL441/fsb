@@ -163,6 +163,7 @@ def stop_motors():
 # on the frontend
 def update_pos_and_heading():
     global robot_pos, robot_heading
+    print("update pos and heading before", robot_pos, robot_heading, steps[current_step])
 
     if steps[current_step] == "FORWARD":
         # Move forward based on the current heading
@@ -188,6 +189,7 @@ def update_pos_and_heading():
         "position": robot_pos,
         "heading": robot_heading,
     }
+    print("update pos and heading after", robot_pos, robot_heading, steps[current_step])
 
     if websocket != None:
         websocket.send_message(json.dumps(data), fail_silently=True)
