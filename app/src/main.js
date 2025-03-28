@@ -161,6 +161,7 @@ let canvas, ctx;
 const COLS = 7; // Aantal rijen en kolommen
 const ROWS = 5; // Aantal rijen en kolommen
 let cellSize; // Make cellSize dynamic
+const dots = []; // Array voor opgeslagen punten {x, y, color}
 
 // Add state variables to track current position
 let currentPosition = {
@@ -179,6 +180,22 @@ function calculateCellSize() {
 
 function resizeCanvas() {
   canvas = document.getElementById('gridCanvas');
+
+  canvas.addEventListener("click", function(event) {
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.round((event.clientX - rect.left) / cellSize);
+    const y = Math.round(ROWS - (event.clientY - rect.top) / cellSize);
+    addDot(x, y, "green");
+  });
+
+  canvas.addEventListener("contextmenu", function(event) {
+    event.preventDefault(); // Voorkom contextmenu
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.round((event.clientX - rect.left) / cellSize);
+    const y = Math.round(ROWS - (event.clientY - rect.top) / cellSize);
+    addDot(x, y, "red");
+  });
+
   const parent = canvas.parentElement;
 
   // Get the parent's computed width
@@ -229,6 +246,13 @@ function drawGrid() {
     ctx.lineTo(offsetX + gridWidth, offsetY + i * cellSize);
     ctx.stroke();
   }
+
+  dots.forEach(dot => {
+    ctx.fillStyle = dot.color;
+    ctx.beginPath();
+    ctx.arc(dot.x * cellSize, (ROWS - dot.y) * cellSize, cellSize / 6, 0, Math.PI * 2);
+    ctx.fill();
+  });
 }
 
 function drawDot(x, y, direction) {
@@ -287,6 +311,17 @@ function drawDot(x, y, direction) {
   ctx.fill();
 }
 
+function addDot(x, y, color) {
+  // Check of er al een dot op deze locatie is
+  const index = dots.findIndex(dot => dot.x === x && dot.y === y);
+  if (index !== -1) {
+    dots.splice(index, 1); // Verwijder de dot als hij al bestaat
+  } else {
+    dots.push({ x, y, color }); // Voeg toe als hij nog niet bestaat
+  }
+  drawGrid();
+}
+
 // Add event listener for window resize with debouncing
 let resizeTimeout;
 window.addEventListener('resize', () => {
@@ -311,6 +346,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const sensorsBtn = document.querySelector("#monitor-btn")
   const applyThresholdBtn = document.querySelector("#apply-thresholds-btn")
   const applyPIDBtn = document.querySelector("#apply-pid-btn")
+  const solveBtn = document.querySelector("#solve")
 
   loading = document.querySelector("#loading")
   loading.classList.add("d-none")
@@ -376,6 +412,11 @@ window.addEventListener("DOMContentLoaded", () => {
       direction: null
     };
     drawGrid()
+  });
+
+  solveBtn.addEventListener("click", async (e) => {
+    console.log(dots)
+    if (!ws) return
   });
 
   sensorsBtn.addEventListener("click", async (e) => {
