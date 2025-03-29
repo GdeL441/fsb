@@ -13,7 +13,7 @@ class Statusled:
         self.pixels.show()
 
     def next_object(self):
-        intensity = white_green_sine()
+        intensity = smooth_sine(0.5)  # 0.5 Hz - adjust this value to change animation speed
         # Create breathing white-green effect
         for i in range(self.NUM_PIXELS):
             self.pixels[i] = (
@@ -24,7 +24,7 @@ class Statusled:
         self.pixels.show()
 
     def collection(self):
-        intensity = cyclic()
+        intensity = smooth_sine(1)  # 1 Hz
         # Orange/yellow pulsing
         color = (
             int(255 * intensity),      # R
@@ -35,7 +35,7 @@ class Statusled:
         self.pixels.show()
 
     def reverse(self):
-        intensity = cyclic()
+        intensity = smooth_sine(1)  # 1 Hz
         # Red pulsing
         color = (
             int(255 * intensity),  # R
@@ -46,7 +46,7 @@ class Statusled:
         self.pixels.show()
 
     def return_home(self):
-        intensity = cyclic()
+        intensity = smooth_sine(1)  # 1 Hz
         # Blue pulsing
         color = (
             0,                     # R
@@ -56,13 +56,10 @@ class Statusled:
         self.pixels.fill(color)
         self.pixels.show()
 
-def white_green_sine():
+def smooth_sine(frequency):
+    """
+    Creates a smooth sine wave with given frequency (Hz)
+    Returns value between 0 and 1
+    """
     t = time.monotonic()
-    return 0.5 + 0.5 * sin(2*pi*t)
-
-def cyclic():
-    t = int(time.monotonic())
-    if t % 2 == 0:
-        return 1
-    else:
-        return 0
+    return (sin(2 * pi * frequency * t) + 1) / 2
