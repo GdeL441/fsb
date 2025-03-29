@@ -4,9 +4,10 @@ from math import sin, pi
 import time
 
 class Statusled:
-    def __init__(self, pin):
+    def __init__(self, pin, brightness=0.3):
         self.NUM_PIXELS = 35
-        self.pixels = neopixel.NeoPixel(pin, self.NUM_PIXELS, brightness=0.3, auto_write=False)
+        brightness = self.brightness
+        self.pixels = neopixel.NeoPixel(pin, self.NUM_PIXELS, brightness=brightness, auto_write=False)
         
     def turn_off(self):
         self.pixels.fill((0, 0, 0))
