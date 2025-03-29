@@ -1,4 +1,5 @@
 const { invoke } = window.__TAURI__.core;
+import { shortestPath } from "./backtrack.js"
 
 let ws = null;
 
@@ -158,23 +159,21 @@ function resetTimer() {
 let ssids, loading, ipInput, position, heading, step, sensors, statusDot
 
 let canvas, ctx;
-const COLS = 7; // Aantal rijen en kolommen
-const ROWS = 5; // Aantal rijen en kolommen
-let cellSize; // Make cellSize dynamic
-const dots = []; // Array voor opgeslagen punten {x, y, color}
+const COLS = 7;
+const ROWS = 5;
+let cellSize;
+const dots = [];
 
-// Add state variables to track current position
 let currentPosition = {
   x: 6,
   y: 0,
   direction: null
 };
+let path = []
 
 function calculateCellSize() {
-  // Calculate cell size based on canvas dimensions and grid size
   const horizontalSize = canvas.width / COLS;
   const verticalSize = canvas.height / ROWS;
-  // Use the smaller value to ensure squares fit both dimensions
   return Math.min(horizontalSize, verticalSize);
 }
 
@@ -195,24 +194,26 @@ function resizeCanvas() {
     const y = Math.round(ROWS - (event.clientY - rect.top) / cellSize);
     addDot(x, y, "red");
   });
+  canvas.addEventListener("dblclick", function(event) {
+    event.preventDefault(); // Voorkom contextmenu
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.round((event.clientX - rect.left) / cellSize);
+    const y = Math.round(ROWS - (event.clientY - rect.top) / cellSize);
+    addDot(x, y, "start");
+  });
 
   const parent = canvas.parentElement;
 
-  // Get the parent's computed width
   const width = parent.clientWidth;
   const height = parent.clientHeight;
 
-  // Set canvas size to match CSS size
   canvas.width = width;
   canvas.height = height;
 
-  // Recalculate cell size
   cellSize = calculateCellSize();
 
-  // Redraw everything
   drawGrid();
 
-  // If there's a current position, redraw the dot using currentPosition state
   if (currentPosition.x !== null && currentPosition.y !== null && currentPosition.direction !== null) {
     drawDot(currentPosition.x, currentPosition.y, currentPosition.direction);
   }
@@ -247,13 +248,55 @@ function drawGrid() {
     ctx.stroke();
   }
 
+  drawPath()
+
+  console.log(dots)
   dots.forEach(dot => {
-    ctx.fillStyle = dot.color;
+    if (dot.color == "start") {
+      ctx.fillStyle = "blue";
+    } else {
+      ctx.fillStyle = dot.color;
+    }
     ctx.beginPath();
     ctx.arc(dot.x * cellSize, (ROWS - dot.y) * cellSize, cellSize / 6, 0, Math.PI * 2);
     ctx.fill();
   });
+
 }
+
+function drawPath() {
+  console.log(path)
+  const gridWidth = COLS * cellSize;
+  const gridHeight = ROWS * cellSize;
+  const offsetX = (canvas.width - gridWidth) / 2;
+  const offsetY = (canvas.height - gridHeight) / 2;
+
+  for (let i = 0; i < path.length - 1; i++) {
+    let from = path[i], to = path[i + 1]
+    const fromX = offsetX + from.x * cellSize, fromY = offsetY + (ROWS - from.y) * cellSize;
+    const toX = offsetX + to.x * cellSize, toY = offsetY + (ROWS - to.y) * cellSize;
+
+    ctx.strokeStyle = "purple";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+
+    ctx.moveTo(fromX, fromY); // Start at circle edge
+    ctx.lineTo(toX, toY); // Base of arrow at circle edge
+    ctx.stroke()
+
+    // ctx.fillStyle = "purple";
+    // ctx.beginPath();
+    // const arrowSize = cellSize / 4; // Slightly smaller arrow
+    // const dotX = (fromX + toX) / 2
+    // const dotY = (fromY + toY) / 2
+    // const dotRadius = cellSize / 4;
+    // ctx.moveTo(dotX, dotY - dotRadius - arrowSize); // Start at circle edge
+    // ctx.lineTo(dotX - arrowSize / 2, dotY - dotRadius); // Base of arrow at circle edge
+    // ctx.lineTo(dotX + arrowSize / 2, dotY - dotRadius);
+    // ctx.fill()
+  };
+}
+
 
 function drawDot(x, y, direction) {
   // Update current position
@@ -312,12 +355,16 @@ function drawDot(x, y, direction) {
 }
 
 function addDot(x, y, color) {
-  // Check of er al een dot op deze locatie is
+  if (color == "start" && dots.find((dot => dot.color == "start"))) {
+    const index = dots.findIndex(dot => dot.color == "start");
+    dots.splice(index, 1);
+  }
+
   const index = dots.findIndex(dot => dot.x === x && dot.y === y);
   if (index !== -1) {
-    dots.splice(index, 1); // Verwijder de dot als hij al bestaat
+    dots.splice(index, 1);
   } else {
-    dots.push({ x, y, color }); // Voeg toe als hij nog niet bestaat
+    dots.push({ x, y, color });
   }
   drawGrid();
 }
@@ -337,7 +384,6 @@ window.addEventListener("DOMContentLoaded", () => {
   loadPID()
 
   const connectBtn = document.querySelector("#connect-btn");
-  // const disconnectBtn = document.querySelector("#disconnect-btn");
   const scanBtn = document.querySelector("#scan-btn")
 
   const startBtn = document.querySelector("#start");
@@ -372,16 +418,8 @@ window.addEventListener("DOMContentLoaded", () => {
     console.log("Connect to", wsUrl);
     connectWs(wsUrl);
   });
-  // disconnectBtn.addEventListener("click", async (e) => {
-  //   e.preventDefault();
-  //   if (!ws) return
-  //   ws.close()
-  //   ws = null
-  // });
 
   startBtn.addEventListener("click", async (e) => {
-    // drawDot(1, 1, "S");
-    // startTimer()
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "start" }))
@@ -389,8 +427,6 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   stopBtn.addEventListener("click", async (e) => {
-    // drawDot(1, 1, "W");
-    // stopTimer()
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "stop" }))
@@ -398,9 +434,6 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   resetBtn.addEventListener("click", async (e) => {
-    // drawDot(2, 1, "E");
-    // stopTimer()
-    // resetTimer()
     e.preventDefault();
     if (!ws) return
     ws.send(JSON.stringify({ action: "reset" }))
@@ -415,7 +448,13 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   solveBtn.addEventListener("click", async (e) => {
-    console.log(dots)
+    const solution = shortestPath(COLS - 1, ROWS - 1, dots)
+    console.log("solution", solution)
+    if (solution) {
+      path = solution.path
+      drawGrid()
+    }
+
     if (!ws) return
   });
 
