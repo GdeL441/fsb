@@ -97,12 +97,27 @@ def connect_client(request: Request):
 
     websocket = Websocket(request)
 
+    # Once a new websocket connects, we send all of the constants for PID, speed,
+    # and thresholds to the frontend.
+    data = {
+        "action": "setup",
+        "speed": BASE_SPEED,
+        "P": Kp,
+        "I": Ki,
+        "D": Kd,
+        "L": L_overline.threshold,
+        "R": R_overline.threshold,
+        "B": B_overline.threshold,
+    }
+
+    websocket.send_message(json.dumps(data), fail_silently=True)
+
     return websocket
 
 
 # If there is a connected websocket connection, check if there is a new incoming message
 def poll_websocket():
-    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd
+    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED
     assert websocket != None
 
     data = websocket.receive(fail_silently=True)
@@ -127,6 +142,10 @@ def poll_websocket():
             Kp = data["P"]
             Ki = data["I"]
             Kd = data["D"]
+        elif data["action"] == "update_speed":
+            print("update base speed", data)
+            speed = max(min(65535, data["speed"]), 0)
+            BASE_SPEED = speed
 
         # TODO
         elif data["action"] == "move":
@@ -169,14 +188,15 @@ def turn_right(left_speed=50):
 def stop_motors():
     Motor_Right.stop()
     Motor_Left.stop()
-    
 
 
 # whenever the car advances on the grid, update its position and heading for monitoring
 # on the frontend
 def update_pos_and_heading():
     global robot_pos, robot_heading
-    print("update pos and heading before", robot_pos, robot_heading, steps[current_step])
+    print(
+        "update pos and heading before", robot_pos, robot_heading, steps[current_step]
+    )
 
     if steps[current_step] == "FORWARD":
         # Move forward based on the current heading
@@ -331,7 +351,6 @@ while True:
 
         stop_motors()
         status_led.turn_off()
-        
 
     server.poll()
 

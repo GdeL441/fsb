@@ -1,5 +1,5 @@
-import pwmio # type: ignore
-import digitalio # type: ignore
+import pwmio  # type: ignore
+import digitalio  # type: ignore
 
 
 class Motor:
@@ -8,7 +8,7 @@ class Motor:
         self.direction = digitalio.DigitalInOut(pin_direction)
         self.direction.direction = digitalio.Direction.OUTPUT
 
-    def run(self, speed): # Speed -100 tot 100
+    def run(self, speed):  # Speed -100 tot 100
         if -100 <= speed < 0:
             self.direction.value = True
             duty_cycle = speed_to_duty_cycle(speed)
@@ -18,9 +18,8 @@ class Motor:
             self.direction.value = False
             duty_cycle = speed_to_duty_cycle(speed)
             self.speed.duty_cycle = duty_cycle
-           
 
-        else: 
+        else:
             print("Invalid speed")
 
     def stop(self):
