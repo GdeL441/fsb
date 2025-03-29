@@ -1,4 +1,3 @@
-import pwmio  # type: ignore
 import analogio  # type: ignore
 
 

@@ -117,7 +117,7 @@ def connect_client(request: Request):
 
 # If there is a connected websocket connection, check if there is a new incoming message
 def poll_websocket():
-    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED
+    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, steps, robot_pos, robot_heading
     assert websocket != None
 
     data = websocket.receive(fail_silently=True)
@@ -125,6 +125,16 @@ def poll_websocket():
         data = json.loads(data)
 
         if data["action"] == "start":
+            if (
+                data["path"] != None
+                and data["startX"] != None
+                and data["startY"] != None
+                and data["heading"] != None
+            ):
+                steps = data["path"]
+                robot_pos = {"x": data["startX"], "y": data["startY"]}
+                robot_heading = data["heading"]
+
             started = True
         elif data["action"] == "stop":
             started = False

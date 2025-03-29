@@ -167,20 +167,21 @@ function resetTimer() {
   updateDisplay();
 }
 
-let ssids, loading, ipInput, position, heading, step, sensors, statusDot
+let ssids, loading, ipInput, position, heading, step, statusDot
 
 let canvas, ctx;
 const COLS = 7;
 const ROWS = 5;
 let cellSize;
-const dots = [];
+let dots = [];
+let path = []
+let solution = null
 
 let currentPosition = {
-  x: 6,
-  y: 0,
+  x: null,
+  y: null,
   direction: null
 };
-let path = []
 
 function calculateCellSize() {
   const horizontalSize = canvas.width / COLS;
@@ -190,28 +191,6 @@ function calculateCellSize() {
 
 function resizeCanvas() {
   canvas = document.getElementById('gridCanvas');
-
-  canvas.addEventListener("click", function(event) {
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.round((event.clientX - rect.left) / cellSize);
-    const y = Math.round(ROWS - (event.clientY - rect.top) / cellSize);
-    addDot(x, y, "green");
-  });
-
-  canvas.addEventListener("contextmenu", function(event) {
-    event.preventDefault(); // Voorkom contextmenu
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.round((event.clientX - rect.left) / cellSize);
-    const y = Math.round(ROWS - (event.clientY - rect.top) / cellSize);
-    addDot(x, y, "red");
-  });
-  canvas.addEventListener("dblclick", function(event) {
-    event.preventDefault(); // Voorkom contextmenu
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.round((event.clientX - rect.left) / cellSize);
-    const y = Math.round(ROWS - (event.clientY - rect.top) / cellSize);
-    addDot(x, y, "start");
-  });
 
   const parent = canvas.parentElement;
 
@@ -261,7 +240,6 @@ function drawGrid() {
 
   drawPath()
 
-  console.log(dots)
   dots.forEach(dot => {
     if (dot.color == "start") {
       ctx.fillStyle = "blue";
@@ -276,7 +254,6 @@ function drawGrid() {
 }
 
 function drawPath() {
-  console.log(path)
   const gridWidth = COLS * cellSize;
   const gridHeight = ROWS * cellSize;
   const offsetX = (canvas.width - gridWidth) / 2;
@@ -366,18 +343,20 @@ function drawDot(x, y, direction) {
 }
 
 function addDot(x, y, color) {
-  if (color == "start" && dots.find((dot => dot.color == "start"))) {
-    const index = dots.findIndex(dot => dot.color == "start");
-    dots.splice(index, 1);
-  }
+  if (x > 0 && y > 0 && x < COLS && y < ROWS) {
+    if (color == "start" && dots.find((dot => dot.color == "start"))) {
+      const index = dots.findIndex(dot => dot.color == "start");
+      dots.splice(index, 1);
+    }
 
-  const index = dots.findIndex(dot => dot.x === x && dot.y === y);
-  if (index !== -1) {
-    dots.splice(index, 1);
-  } else {
-    dots.push({ x, y, color });
+    const index = dots.findIndex(dot => dot.x === x && dot.y === y);
+    if (index !== -1) {
+      dots.splice(index, 1);
+    } else {
+      dots.push({ x, y, color });
+    }
+    drawGrid();
   }
-  drawGrid();
 }
 
 // Add event listener for window resize with debouncing
@@ -390,6 +369,29 @@ window.addEventListener('resize', () => {
 // Initial setup when the page loads
 window.addEventListener("DOMContentLoaded", () => {
   canvas = document.getElementById("gridCanvas");
+
+  canvas.addEventListener("click", function(event) {
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.round((event.clientX - rect.left) / cellSize);
+    const y = Math.round(ROWS - (event.clientY - rect.top) / cellSize);
+    addDot(x, y, "green");
+  });
+
+  canvas.addEventListener("contextmenu", function(event) {
+    event.preventDefault(); // Voorkom contextmenu
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.round((event.clientX - rect.left) / cellSize);
+    const y = Math.round(ROWS - (event.clientY - rect.top) / cellSize);
+    addDot(x, y, "red");
+  });
+  canvas.addEventListener("dblclick", function(event) {
+    event.preventDefault(); // Voorkom contextmenu
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.round((event.clientX - rect.left) / cellSize);
+    const y = Math.round(ROWS - (event.clientY - rect.top) / cellSize);
+    addDot(x, y, "start");
+  });
+
   resizeCanvas(); // This will set up the initial canvas size and draw the grid
   loadThresholds()
   loadPID()
@@ -406,6 +408,8 @@ window.addEventListener("DOMContentLoaded", () => {
   const applySpeedBtn = document.querySelector("#apply-speed-btn")
   const applyPIDBtn = document.querySelector("#apply-pid-btn")
   const solveBtn = document.querySelector("#solve")
+  const clearBtn = document.querySelector("#clear-btn")
+  const sidebarBtn = document.querySelector("#sidebar-hide")
 
   loading = document.querySelector("#loading")
   loading.classList.add("d-none")
@@ -417,12 +421,14 @@ window.addEventListener("DOMContentLoaded", () => {
   step = document.querySelector("#step")
   statusDot = document.querySelector("#status-dot")
 
-
-  scanBtn.addEventListener("click", (e) => {
+  sidebarBtn.addEventListener("click", () => {
+    resizeCanvas()
+    setTimeout(resizeCanvas, 500)
+  })
+  scanBtn.addEventListener("click", () => {
     scan()
   })
-  connectBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
+  connectBtn.addEventListener("click", async () => {
     if (ws) {
       ws.close();
       return;
@@ -432,22 +438,28 @@ window.addEventListener("DOMContentLoaded", () => {
     connectWs(wsUrl);
   });
 
-  startBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
+  startBtn.addEventListener("click", async () => {
+    const startPos = dots.find(dot => dot.color == "start")
+    if (startPos)
+      drawDot(startPos.x, startPos.y, "N");
+
     if (!ws) return
-    ws.send(JSON.stringify({ action: "start" }))
+
+    if (solution)
+      ws.send(JSON.stringify({ action: "start", path: solution.directions, heading: "N", startX: startPos?.x, startY: startPos?.y }))
+    else
+      ws.send(JSON.stringify({ action: "start" }))
+
     startTimer()
   });
 
-  stopBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
+  stopBtn.addEventListener("click", async () => {
     if (!ws) return
     ws.send(JSON.stringify({ action: "stop" }))
     stopTimer()
   });
 
-  resetBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
+  resetBtn.addEventListener("click", async () => {
     if (!ws) return
     ws.send(JSON.stringify({ action: "reset" }))
     stopTimer()
@@ -460,26 +472,22 @@ window.addEventListener("DOMContentLoaded", () => {
     drawGrid()
   });
 
-  solveBtn.addEventListener("click", async (e) => {
-    const solution = shortestPath(COLS - 1, ROWS - 1, dots)
+  solveBtn.addEventListener("click", async () => {
+    solution = shortestPath(COLS - 1, ROWS - 1, dots)
     console.log("solution", solution)
     if (solution) {
       path = solution.path
       drawGrid()
     }
-
-    if (!ws) return
   });
 
-  sensorsBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
+  sensorsBtn.addEventListener("click", async () => {
     if (!ws) return
     console.log("start monitor sensor")
     ws.send(JSON.stringify({ action: "monitor_sensor" }))
   });
 
-  applyThresholdBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
+  applyThresholdBtn.addEventListener("click", async () => {
     if (!ws) return
     let L = Number(document.querySelector("#left-sensor-threshold").value)
     let R = Number(document.querySelector("#right-sensor-threshold").value)
@@ -490,8 +498,7 @@ window.addEventListener("DOMContentLoaded", () => {
     ws.send(JSON.stringify({ action: "set_threshold", L, R, B }))
   });
 
-  applyPIDBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
+  applyPIDBtn.addEventListener("click", async () => {
     if (!ws) return
     let P = Number(document.querySelector("#kp-value").value)
     let I = Number(document.querySelector("#ki-value").value)
@@ -502,14 +509,19 @@ window.addEventListener("DOMContentLoaded", () => {
     ws.send(JSON.stringify({ action: "update_pid", P, I, D }))
   });
 
-  applySpeedBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
+  applySpeedBtn.addEventListener("click", async () => {
     if (!ws) return
     let speed = Number(document.querySelector("#speed-value").value)
     // Save to localStorage
     localStorage.setItem("speed", JSON.stringify({ speed }));
 
     ws.send(JSON.stringify({ action: "update_speed", speed }))
+  });
+  clearBtn.addEventListener("click", async () => {
+    path = []
+    dots = []
+    solution = null
+    drawGrid()
   });
 });
 

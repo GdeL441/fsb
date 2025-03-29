@@ -41,28 +41,31 @@ export function shortestPath(COLS, ROWS, dots) {
     }
   }
 
-
   let bestCost = 1000000
   let bestPath = null
+  let lastPos = null
 
   const backtrack = (position, cost, visitedNodes, path) => {
     if (visitedNodes.size == nodes.length) {
+      // Now also add the distance back to the starting position to the cost
+      let pathHome = dists.get(position)?.get(start)
+      if (!pathHome) return
+
       // All nodes visited, if the cost is lower than the previous, save the found path
-      if (cost < bestCost) {
-        bestCost = cost
-        bestPath = path
+      if (cost + pathHome.dist < bestCost) {
+        bestCost = cost + pathHome.dist
+        bestPath = [...path, ...pathHome.path.slice(1)]
+        // lastPos = position
       }
       return
     }
 
     // Now visit all unvisited nodes from the current position
     for (const node of nodes) {
-
       if (node == position || visitedNodes.has(node)) {
         // Skip if already visited
         continue
       }
-
 
       // Look up the distance and path between the current position and the node
       let pathBetween = dists.get(position)?.get(node)
@@ -81,11 +84,15 @@ export function shortestPath(COLS, ROWS, dots) {
   let visited = new Set()
   // Add start to visited, since it is also included in nodes
   visited.add(start)
-  // Start the backtracking
+  // Start the backtracking, returning the last position 
   backtrack(start, 0, visited, [start])
 
-  const directions = pathToDirections(bestPath)
-  return bestPath ? { cost: bestCost, path: bestPath, directions } : null
+  if (bestPath) {
+    // if (!pathHome) return
+    // bestPath = [...bestPath, ...pathHome.path.slice(1)]
+    const directions = pathToDirections(bestPath)
+    return { cost: bestCost, path: bestPath, directions }
+  }
 }
 
 // Calculate the shortest path between two nodes, later used to calculate the overal shortest path
@@ -150,6 +157,11 @@ function pathToDirections(path, heading = "N") {
       heading = "W"
     }
   };
+
+  // Make sure we always end up heading north
+  if (heading == "E") directions.push("LEFT")
+  else if (heading == "S") directions.push(["LEFT", "LEFT"])
+  else if (heading == "W") directions.push("RIGHT")
 
   return directions.flat()
 }

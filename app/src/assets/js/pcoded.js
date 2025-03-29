@@ -273,7 +273,7 @@ window.addEventListener('load', function() {
 var elem = document.querySelectorAll('.pc-sidebar .pc-navbar a');
 for (var l = 0; l < elem.length; l++) {
   var pageUrl = window.location.href.split(/[?#]/)[0];
-  console.log("page url", window.location.href, pageUrl, elem[l].href, elem[l].href.startsWith(pageUrl))
+  // console.log("page url", window.location.href, pageUrl, elem[l].href, elem[l].href.startsWith(pageUrl))
   if ((elem[l].href == window.location.href || ('http://127.0.0.1:1430/' == window.location.href && elem[l].href.includes("dashboard"))) && elem[l].getAttribute('href') != '') {
     elem[l].parentNode.classList.add('active');
 

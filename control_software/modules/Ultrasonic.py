@@ -1,4 +1,3 @@
-import time  # type: ignore
 import board  # type: ignore
 import busio  # type: ignore
 import adafruit_us100  # type: ignore
