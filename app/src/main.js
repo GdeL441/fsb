@@ -2,7 +2,7 @@ function addToLog(message, type) {
   const log = document.getElementById('websocket-log');
   const entry = document.createElement('div');
   const timestamp = new Date().toLocaleTimeString();
-  
+
   entry.innerHTML = `<span class="text-muted">[${timestamp}]</span> <span class="${type === 'sent' ? 'text-danger' : 'text-success'}">${type === 'sent' ? 'App' : 'Pico'}:</span> ${JSON.stringify(message)}`;
   log.appendChild(entry);
   log.scrollTop = log.scrollHeight;
@@ -250,7 +250,7 @@ function drawGrid() {
   }
 
   // Draw horizontal lines
-  for (let i = 1; i <= ROWS-1; i++) {
+  for (let i = 1; i <= ROWS - 1; i++) {
     ctx.beginPath();
     ctx.moveTo(offsetX, offsetY + i * cellSize);
     ctx.lineTo(offsetX + gridWidth, offsetY + i * cellSize);
@@ -544,7 +544,62 @@ window.addEventListener("DOMContentLoaded", () => {
     solution = null
     drawGrid()
   });
+  window.addEventListener("keydown", keyPressed);
+  window.addEventListener("keyup", keyUp);
 });
+
+function calculateMotorSpeeds() {
+  let leftSpeed = 0, rightSpeed = 0
+
+  if (document.querySelector(`div[data-key="87"]`).classList.contains("activeKey")) {
+    leftSpeed += 50
+    rightSpeed += 50
+  }
+  if (document.querySelector(`div[data-key="83"]`).classList.contains("activeKey")) {
+    leftSpeed -= 50
+    rightSpeed -= 50
+  }
+  if (document.querySelector(`div[data-key="65"]`).classList.contains("activeKey")) {
+    rightSpeed += 50
+  }
+  if (document.querySelector(`div[data-key="68"]`).classList.contains("activeKey")) {
+    leftSpeed += 50
+  }
+  console.log(leftSpeed, rightSpeed)
+}
+
+function keyPressed(e) {
+  // Assigns key "div" to key
+  const key = document.querySelector(`div[data-key="${e.keyCode}"]`);
+  // Only applies activeKey to the keys displayed in browser
+  if (
+    e.keyCode === 87 ||
+    e.keyCode === 65 ||
+    e.keyCode === 83 ||
+    e.keyCode === 68
+  ) {
+    // Adds class activeKey
+    key.classList.add("activeKey");
+  }
+
+  calculateMotorSpeeds()
+}
+
+function keyUp(e) {
+  // Assigns key "div" to key
+  const key = document.querySelector(`div[data-key="${e.keyCode}"]`);
+  // Only applies activeKey to the keys displayed in browser
+  if (
+    e.keyCode === 87 ||
+    e.keyCode === 65 ||
+    e.keyCode === 83 ||
+    e.keyCode === 68
+  ) {
+    // Adds class activeKey
+    key.classList.remove("activeKey");
+  }
+  calculateMotorSpeeds()
+}
 
 function loadThresholds() {
   let savedThresholds = localStorage.getItem("thresholds");
@@ -591,3 +646,4 @@ function loadSpeed() {
 function setSpeed(speed) {
   document.querySelector("#speed-value").value = speed
 }
+

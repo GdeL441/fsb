@@ -25,3 +25,36 @@
 .pc-link {
   cursor: pointer !important;
 }
+.keyboard {
+  padding: 2.5em 0;
+  width: 190px;
+}
+.top-row {
+  width: 140px;
+  width: 190px;
+  margin: 0 auto;
+  display: inline-flex;
+  justify-content: center;
+}
+.bottom-row {
+  display: inline-flex;
+  justify-content: center;
+}
+
+.key {
+  background-color: gray;
+  border: 1px solid #4c4c4c;
+  border-radius: 4px;
+  color: #ffffff;
+  width: 50px;
+  height: 50px;
+  text-align: center;
+  transition: all 0.07s ease;
+}
+.activeKey {
+  background-color: #3c3c3c;
+}
+.key > p {
+  font-size: 2em;
+}
+
