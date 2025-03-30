@@ -6,11 +6,13 @@ version = 4
 name = "FSB_Telemetry_Interface"
 version = "0.0.1"
 dependencies = [
+ "dual-shock4-controller",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
+ "tokio",
  "tokio-wifiscanner",
  "wifi-rs",
 ]
@@ -820,6 +822,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dual-shock4-controller"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1af7343f469a5751683f323af2b17e08cd6e47ae8db7e0419b87284dd7566939"
+dependencies = [
+ "hidapi",
+]
+
+[[package]]
 name = "dunce"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1446,6 +1457,18 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
+name = "hidapi"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "798154e4b6570af74899d71155fb0072d5b17e6aa12f39c8ef22c60fb8ec99e7"
+dependencies = [
+ "cc",
+ "libc",
+ "pkg-config",
+ "winapi",
+]
 
 [[package]]
 name = "html5ever"

@@ -1,3 +1,4 @@
+use dual_shock4_controller::joystick::{DeviceInfo, Joystick};
 use std::sync::{Arc, Mutex};
 
 use tauri::{Manager, State};
@@ -48,6 +49,25 @@ pub fn run() {
         interface: Some("en0"),
     });
 
+    let handler = std::thread::spawn(|| {
+        let joystick = Joystick::new();
+        let device_info = DeviceInfo {
+            vid: 0x054c,
+            pid: 0x05c4,
+        }; //HID\VID_054C&PID_05C4\7&3869AC07&0&0000
+        let device = joystick.connect(device_info).expect("can't find device!"); //
+        loop {
+            let mut buf = [0u8; 64];
+            device.read_timeout(&mut buf[..], 1000).unwrap();
+            let gamepad = joystick.get_gamepad().get_state(&buf);
+            if gamepad.x_button.pressed {
+                println!("× button is pressed");
+                break;
+            }
+        }
+    });
+    // tokio::spawn(ds4());
+
     let wifi = Arc::new(Mutex::new(WiFi::new(config)));
 
     tauri::Builder::default()
@@ -63,3 +83,21 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+// async fn ds4() {
+//     let joystick = Joystick::new();
+//     let device_info = DeviceInfo {
+//         vid: 0x054c,
+//         pid: 0x05c4,
+//     }; //HID\VID_054C&PID_05C4\7&3869AC07&0&0000
+//     let device = joystick.connect(device_info).expect("can't find device!"); //
+//     loop {
+//         let mut buf = [0u8; 64];
+//         device.read_timeout(&mut buf[..], 1000).unwrap();
+//         let gamepad = joystick.get_gamepad().get_state(&buf);
+//         if gamepad.x_button.pressed {
+//             println!("× button is pressed");
+//             break;
+//         }
+//     }
+// }

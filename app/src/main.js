@@ -242,7 +242,7 @@ function drawGrid() {
   ctx.lineWidth = 3;
 
   // Draw vertical lines
-  for (let i = 0; i <= COLS; i++) {
+  for (let i = 1; i <= COLS - 1; i++) {
     ctx.beginPath();
     ctx.moveTo(offsetX + i * cellSize, offsetY);
     ctx.lineTo(offsetX + i * cellSize, offsetY + gridHeight);
@@ -250,7 +250,7 @@ function drawGrid() {
   }
 
   // Draw horizontal lines
-  for (let i = 0; i <= ROWS; i++) {
+  for (let i = 1; i <= ROWS-1; i++) {
     ctx.beginPath();
     ctx.moveTo(offsetX, offsetY + i * cellSize);
     ctx.lineTo(offsetX + gridWidth, offsetY + i * cellSize);
@@ -496,8 +496,10 @@ window.addEventListener("DOMContentLoaded", () => {
     console.log("solution", solution)
     if (solution) {
       path = solution.path
-      drawGrid()
+    } else {
+      path = []
     }
+    drawGrid()
   });
 
   sensorsBtn.addEventListener("click", async () => {
