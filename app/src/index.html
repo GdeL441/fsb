@@ -292,9 +292,17 @@
       <!--[ monitor ] start-->
       <div class="col-sm-12">
         <div class="card">
-          <div class="card-header">
-            <h4>Monitor</h4>
-            <p>Here you will be able to monitor the FSB</p>
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+              <h4>Monitor</h4>
+              <p class="mb-0">WebSocket Communication Log</p>
+            </div>
+            <button id="clear-log-btn" class="btn btn-secondary">Clear Log</button>
+          </div>
+          <div class="card-body">
+            <div id="websocket-log" style="height: 300px; overflow-y: auto; font-family: monospace; background: #f8f9fa; padding: 1rem;">
+              <!-- Log entries will be inserted here -->
+            </div>
           </div>
         </div>
       </div>

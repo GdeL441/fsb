@@ -1,3 +1,17 @@
+function addToLog(message, type) {
+  const log = document.getElementById('websocket-log');
+  const entry = document.createElement('div');
+  const timestamp = new Date().toLocaleTimeString();
+  
+  entry.innerHTML = `<span class="text-muted">[${timestamp}]</span> <span class="${type === 'sent' ? 'text-danger' : 'text-success'}">${type === 'sent' ? 'App' : 'Pico'}:</span> ${JSON.stringify(message)}`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+document.getElementById('clear-log-btn').addEventListener('click', () => {
+  document.getElementById('websocket-log').innerHTML = '';
+});
+
 const { invoke } = window.__TAURI__.core;
 import { shortestPath } from "./backtrack.js"
 
@@ -26,7 +40,7 @@ async function connectWs(url) {
     statusDot.classList.add("bg-success");
     statusDot.classList.remove("bg-danger");
     updateConnectButton(true);
-    console.log('WebSocket connection opened');
+    addToLog('Connection established', 'received');
   };
 
   ws.onclose = () => {
@@ -39,8 +53,8 @@ async function connectWs(url) {
   };
 
   ws.onmessage = event => {
-    const data = JSON.parse(event.data)
-    console.log("data received from websocket", data)
+    const data = JSON.parse(event.data);
+    addToLog(data, 'received');
     if (data.action == "setup") {
       console.log("received setup data", data)
       let threshold = { L: data["L"], R: data["R"], B: data["B"] }
@@ -78,6 +92,11 @@ async function connectWs(url) {
     statusDot.classList.add("bg-danger");
     updateConnectButton(false);
     ws = null;
+  };
+  const originalSend = ws.send;
+  ws.send = function(data) {
+    addToLog(JSON.parse(data), 'sent');
+    originalSend.call(this, data);
   };
 };
 async function scan() {
