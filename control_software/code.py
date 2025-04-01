@@ -121,7 +121,7 @@ def connect_client(request: Request):
 
 # If there is a connected websocket connection, check if there is a new incoming message
 def poll_websocket():
-    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, steps, robot_pos, robot_heading
+    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, steps, robot_pos, robot_heading, manual_control
     assert websocket != None
 
     data = websocket.receive(fail_silently=True)
@@ -163,9 +163,8 @@ def poll_websocket():
 
         # TODO
         elif data["action"] == "manual_control":
-            print(data["speedL"], data["speedR"])
             started = False
-            manual_control = True
+            manual_control = not manual_control
             
         else:
             print("Received other data: ", data)
@@ -300,6 +299,7 @@ while True:
     # print(f"Sensor back: {B_overline.status()}")
 
     if started == True:
+        manual_control = False
         status_led.next_object()
         if collision.detect():
             print("Collision Detected! Resetting...")

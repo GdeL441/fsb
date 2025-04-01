@@ -429,6 +429,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const solveBtn = document.querySelector("#solve")
   const clearBtn = document.querySelector("#clear-btn")
   const sidebarBtn = document.querySelector("#sidebar-hide")
+  const manualBtn = document.querySelector("#manual-control-btn")
 
   loading = document.querySelector("#loading")
   loading.classList.add("d-none")
@@ -546,7 +547,14 @@ window.addEventListener("DOMContentLoaded", () => {
   });
   window.addEventListener("keydown", keyPressed);
   window.addEventListener("keyup", keyUp);
+
+
+  manualBtn.addEventListener("click", async () => {
+    if (!ws) return
+    ws.send(JSON.stringify({ action: "manual_control" }))
+  });
 });
+
 
 function calculateMotorSpeeds() {
   let leftSpeed = 0, rightSpeed = 0
