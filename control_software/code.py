@@ -31,11 +31,15 @@ collision = Ultrasonic.Collision(5)
 
 # Is the timer currently running, should the car continue making progres on the steps
 started = False
+
 # Keep track of the time since next_step called, this will help when turning
 time_since_next_step = time.monotonic()
 
 # is the frontend currently monitoring the sensor values
 MONITORING_SENSOR = False
+
+# Does the frontend ask for manual control
+manual_control = False
 
 # Initialize robot position/heading and grid
 robot_pos = {"x": 6, "y": 0}
@@ -158,8 +162,11 @@ def poll_websocket():
             BASE_SPEED = speed
 
         # TODO
-        elif data["action"] == "move":
+        elif data["action"] == "manual_control":
             print(data["speedL"], data["speedR"])
+            started = False
+            manual_control = True
+            
         else:
             print("Received other data: ", data)
 
@@ -199,6 +206,9 @@ def stop_motors():
     Motor_Right.stop()
     Motor_Left.stop()
 
+
+def manual_control():
+    pass
 
 # whenever the car advances on the grid, update its position and heading for monitoring
 # on the frontend
@@ -353,7 +363,9 @@ while True:
                 ):
                     stop_motors()
                     next_step()
-
+    elif manual_control:
+        manual_control()
+        # To do: nog speciale status
     else:
 
         if MONITORING_SENSOR:
