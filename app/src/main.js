@@ -498,10 +498,12 @@ window.addEventListener("DOMContentLoaded", () => {
 
     if (!ws) return
 
-    if (solution)
-      ws.send(JSON.stringify({ action: "start", path: solution.directions, heading: "N", startX: startPos?.x, startY: startPos?.y }))
-    else
+    if (solution) {
+      let green_towers = dots.filter(dot => dot.color == "green").map(({ x, y }) => ({ x, y }))
+      ws.send(JSON.stringify({ action: "start", path: solution.directions, heading: "N", startX: startPos?.x, startY: startPos?.y, green_towers }))
+    } else {
       ws.send(JSON.stringify({ action: "start" }))
+    }
 
     startTimer()
   });
