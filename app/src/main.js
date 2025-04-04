@@ -74,9 +74,15 @@ async function connectWs(url) {
       let previousPos = JSON.parse(position.textContent)
       if (previousPos != newPos) {
         let greenDot = dots.find((dot) => dot.x == data.position.x && dot.y == data.position.y && dot.color == "green")
-        console.log(dots, data, score, greenDot)
+        console.log("green", dots, data, score, greenDot)
         if (greenDot) {
-          score += 1
+          score += 100
+          document.querySelector("#score").innerText = score
+        }
+        let redDot = dots.find((dot) => dot.x == data.position.x && dot.y == data.position.y && dot.color == "red")
+        console.log("red", dots, data, score, redDot)
+        if (redDot) {
+          score -= 50
           document.querySelector("#score").innerText = score
         }
       }
@@ -87,6 +93,12 @@ async function connectWs(url) {
       drawDot(data.position.x, data.position.y, data.heading)
     } else if (data.action == "finished") {
       console.log("Finished")
+      if ((timer / 1000) / 60 < 5) {
+        score += 200
+      } else {
+        score += (timer / 1000) * 3
+      }
+      document.querySelector("#score").innerText = score
       stopTimer()
     } else if (data.action == "sensor_values") {
       console.log("Sensor values", data)

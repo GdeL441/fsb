@@ -39,7 +39,8 @@ time_since_next_step = time.monotonic()
 MONITORING_SENSOR = False
 
 # Does the frontend ask for manual control
-manual_control = False
+MANUAL_CONTROL = False
+MANUAL_CONTROL_SPEEDS = {"left": 0, "right": 0}
 
 # Initialize robot position/heading and grid
 robot_pos = {"x": 6, "y": 0}
@@ -121,7 +122,7 @@ def connect_client(request: Request):
 
 # If there is a connected websocket connection, check if there is a new incoming message
 def poll_websocket():
-    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, steps, robot_pos, robot_heading, manual_control
+    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS
     assert websocket != None
 
     data = websocket.receive(fail_silently=True)
@@ -129,6 +130,7 @@ def poll_websocket():
         data = json.loads(data)
 
         if data["action"] == "start":
+            MANUAL_CONTROL = False
             if (
                 data["path"] != None
                 and data["startX"] != None
@@ -160,11 +162,15 @@ def poll_websocket():
             print("update base speed", data)
             speed = max(min(65535, data["speed"]), 0)
             BASE_SPEED = speed
-
-        # TODO
         elif data["action"] == "manual_control":
             started = False
-            manual_control = not manual_control
+            MANUAL_CONTROL = not MANUAL_CONTROL
+        elif data["action"] == "manual_control_speeds":
+            if not MANUAL_CONTROL:
+                return
+
+            MANUAL_CONTROL_SPEEDS = data["speeds"]
+
             
         else:
             print("Received other data: ", data)
@@ -207,7 +213,10 @@ def stop_motors():
 
 
 def manual_control():
-    pass
+    left, right = MANUAL_CONTROL_SPEEDS["left"], MANUAL_CONTROL_SPEEDS["right"]
+    print(f"Manual control: left={left} right={right}")
+    Motor_Left.run(left)
+    Motor_Right.run(right)
 
 # whenever the car advances on the grid, update its position and heading for monitoring
 # on the frontend
@@ -299,7 +308,6 @@ while True:
     # print(f"Sensor back: {B_overline.status()}")
 
     if started == True:
-        manual_control = False
         status_led.next_object()
         if collision.detect():
             print("Collision Detected! Resetting...")
@@ -363,10 +371,10 @@ while True:
                 ):
                     stop_motors()
                     next_step()
-    elif manual_control:
-        manual_control()
-        # To do: nog speciale status
     else:
+
+        if MANUAL_CONTROL:
+            manual_control()
 
         if MONITORING_SENSOR:
             send_sensor_values()
