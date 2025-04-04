@@ -70,7 +70,18 @@ async function connectWs(url) {
       console.log(data.step)
       step.textContent = `${data.step}`
     } else if (data.action == "position_updated") {
-      position.textContent = JSON.stringify(data.position)
+      let newPos = JSON.stringify(data.position)
+      let previousPos = JSON.parse(position.textContent)
+      if (previousPos != newPos) {
+        let greenDot = dots.find((dot) => dot.x == data.position.x && dot.y == data.position.y && dot.color == "green")
+        console.log(dots, data, score, greenDot)
+        if (greenDot) {
+          score += 1
+          document.querySelector("#score").innerText = score
+        }
+      }
+
+      position.textContent = newPos
       heading.textContent = data.heading
       console.log("heading", data.heading, "position", data.position)
       drawDot(data.position.x, data.position.y, data.heading)
@@ -146,6 +157,7 @@ async function connectToWifi(ssid) {
 
 
 let timer;
+let score
 let milliseconds = 0;
 let isRunning = false;
 
@@ -485,6 +497,7 @@ window.addEventListener("DOMContentLoaded", () => {
     ws.send(JSON.stringify({ action: "reset" }))
     stopTimer()
     resetTimer()
+    score = 0
     currentPosition = {
       x: 6,
       y: 0,
