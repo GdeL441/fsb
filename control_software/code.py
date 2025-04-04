@@ -2,17 +2,12 @@ import time
 import json
 import pwmio # type: ignore
 import board  # type: ignore
-import digitalio  # type: ignore
 from analogio import AnalogIn  # type: ignore
 import socketpool  # type: ignore
 import wifi  # type: ignore
 from adafruit_httpserver import Server, Request, Response, GET, Websocket  # type: ignore
 from modules import Motors, Sensors, Ultrasonic, Statusled
 from adafruit_motor import servo # type: ignore
-
-# import mdns # type: ignore
-# import pwmio # type: ignore
-# import ipaddress
 
 # Initialize sensors
 # Using GP26, 27 and 28
@@ -32,7 +27,7 @@ Motor_Right = Motors.Motor(board.GP4, board.GP5)
 collision = Ultrasonic.Collision(5)
 
 # Initialize servo motor
-servo = servo.Servo(pwmio.PWMOut(board.GP8))
+servo = servo.Servo(pwmio.PWMOut(board.GP8, duty_cycle=2 ** 15, frequency=50))
 # Timestamp at which servo was activated, this makes it possible to make the pickup non-blocking
 servo_active_time = None
 
@@ -53,7 +48,7 @@ MANUAL_CONTROL_SPEEDS = {"left": 0, "right": 0}
 robot_pos = {"x": 6, "y": 0}
 DIRECTIONS = ["N", "E", "S", "W"]
 robot_heading = "N"  # "N" "E" "S" "W"
-green_towers = []
+green_towers = [] # Location of green towers
 
 
 # Steps the robot should take, later this should be computed at runtime(grid backtracking)
@@ -322,10 +317,9 @@ def send_sensor_values():
     }
     websocket.send_message(json.dumps(data), fail_silently=True)
 
+# Utility function to search the first occurence in list with lambda function
 def find(lst, fn):
   return next(x for x in lst if fn(x))
-
-# find([1, 2, 3, 4], lambda n: n % 2 == 1) # 1
 
 # Main loop
 while True:
@@ -411,7 +405,7 @@ while True:
     if servo_active_time != None:
         # The servo is activated to move up, if it has been in this 'up' state for longer than 1 second,
         # move the servo back down
-        if servo_active_time - time.monotonic() > 1:
+        if time.monotonic() - servo_active_time > 1:
             servo.angle = 0
             servo_active_time = None
 
