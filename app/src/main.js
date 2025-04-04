@@ -195,6 +195,7 @@ let cellSize;
 let dots = [];
 let path = []
 let solution = null
+let manual_control = false
 
 let currentPosition = {
   x: null,
@@ -548,9 +549,20 @@ window.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("keydown", keyPressed);
   window.addEventListener("keyup", keyUp);
 
-
   manualBtn.addEventListener("click", async () => {
     if (!ws) return
+    manual_control = !manual_control
+
+    if (manualBtn.classList.contains("btn-primary")) {
+      manualBtn.innerText = "Stop Takeover"
+      manualBtn.classList.remove("btn-primary");
+      manualBtn.classList.add("btn-danger");
+    } else {
+      manualBtn.innerText = "Takeover"
+      manualBtn.classList.add("btn-primary");
+      manualBtn.classList.remove("btn-danger");
+    }
+
     ws.send(JSON.stringify({ action: "manual_control" }))
   });
 });
@@ -573,7 +585,9 @@ function calculateMotorSpeeds() {
   if (document.querySelector(`div[data-key="68"]`).classList.contains("activeKey")) {
     leftSpeed += 50
   }
-  console.log(leftSpeed, rightSpeed)
+
+  if (!ws || manual_control) return
+  ws.send(JSON.stringify({ action: "manual_control", speeds: { left: leftSpeed, right: rightSpeed } }))
 }
 
 function keyPressed(e) {
