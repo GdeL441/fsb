@@ -1,5 +1,6 @@
 import time
 import json
+import pwmio # type: ignore
 import board  # type: ignore
 import digitalio  # type: ignore
 from analogio import AnalogIn  # type: ignore
@@ -7,6 +8,7 @@ import socketpool  # type: ignore
 import wifi  # type: ignore
 from adafruit_httpserver import Server, Request, Response, GET, Websocket  # type: ignore
 from modules import Motors, Sensors, Ultrasonic, Statusled
+from adafruit_motor import servo # type: ignore
 
 # import mdns # type: ignore
 # import pwmio # type: ignore
@@ -29,6 +31,11 @@ Motor_Right = Motors.Motor(board.GP4, board.GP5)
 # Initialize Ultrasonic, in cm
 collision = Ultrasonic.Collision(5)
 
+# Initialize servo motor
+servo = servo.Servo(pwmio.PWMOut(board.GP8))
+# Timestamp at which servo was activated, this makes it possible to make the pickup non-blocking
+servo_active_time = None
+
 # Is the timer currently running, should the car continue making progres on the steps
 started = False
 
@@ -46,6 +53,8 @@ MANUAL_CONTROL_SPEEDS = {"left": 0, "right": 0}
 robot_pos = {"x": 6, "y": 0}
 DIRECTIONS = ["N", "E", "S", "W"]
 robot_heading = "N"  # "N" "E" "S" "W"
+green_towers = []
+
 
 # Steps the robot should take, later this should be computed at runtime(grid backtracking)
 steps = [
@@ -122,7 +131,7 @@ def connect_client(request: Request):
 
 # If there is a connected websocket connection, check if there is a new incoming message
 def poll_websocket():
-    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS
+    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, green_towers
     assert websocket != None
 
     data = websocket.receive(fail_silently=True)
@@ -136,10 +145,12 @@ def poll_websocket():
                 and data["startX"] != None
                 and data["startY"] != None
                 and data["heading"] != None
+                and data["green_towers"] != None
             ):
                 steps = data["path"]
                 robot_pos = {"x": data["startX"], "y": data["startY"]}
                 robot_heading = data["heading"]
+                green_towers = data["green_towers"]
 
             started = True
         elif data["action"] == "stop":
@@ -183,7 +194,7 @@ print("Server started, open for websocket connection")
 # Reset the cars state, this will be triggered either by the frontend or
 # when the car ran into a wall
 def reset_state():
-    global started, current_step, error_sum, last_error, intersection_detected, robot_pos, robot_heading
+    global started, current_step, error_sum, last_error, intersection_detected, robot_pos, robot_heading, green_towers, servo_active_time
     print("Reset state")
     started = False
     stop_motors()
@@ -193,6 +204,8 @@ def reset_state():
     intersection_detected = False
     robot_pos = {"x": 6, "y": 0}
     robot_heading = "N"  # "N" "E" "S" "W"
+    green_towers = []
+    servo_active_time = None
 
 
 def turn_left(right_speed=50):
@@ -262,6 +275,11 @@ def next_step():
 
     update_pos_and_heading()
 
+    # TODO: check if there was a green dot on this intersection, if so, rotate the pick-up arm
+    if find(green_towers, lambda t: t["x"] == robot_pos["x"] and t["y"]== robot_pos["y"] ):
+        print("Pick up item")
+        pickup()
+
     current_step += 1
     time_since_next_step = time.monotonic()
 
@@ -282,6 +300,10 @@ def next_step():
     if websocket != None:
         websocket.send_message(json.dumps(data), fail_silently=True)
 
+def pickup():
+    global servo_active_time
+    servo.angle = 180
+    servo_active_time = time.monotonic()
 
 def duty_cycle_to_speed(duty_cycle):
     speed = (duty_cycle * 100) / 65535  # Convert duty cycle back to percentage
@@ -300,6 +322,10 @@ def send_sensor_values():
     }
     websocket.send_message(json.dumps(data), fail_silently=True)
 
+def find(lst, fn):
+  return next(x for x in lst if fn(x))
+
+# find([1, 2, 3, 4], lambda n: n % 2 == 1) # 1
 
 # Main loop
 while True:
@@ -381,6 +407,13 @@ while True:
 
         stop_motors()
         status_led.turn_off()
+
+    if servo_active_time != None:
+        # The servo is activated to move up, if it has been in this 'up' state for longer than 1 second,
+        # move the servo back down
+        if servo_active_time - time.monotonic() > 1:
+            servo.angle = 0
+            servo_active_time = None
 
     server.poll()
 
