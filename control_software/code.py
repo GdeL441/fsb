@@ -17,17 +17,17 @@ R_overline = Sensors.Sensor(board.GP27, 40000)
 B_overline = Sensors.Sensor(board.GP28, 30000)
 
 # Initialize status sensor (To Be Replaced by RGB Strip)
-status_led = Statusled.Statusled(board.GP7)
+status_led = Statusled.Statusled(board.GP18)
 
 # Initaliaze Motors
-Motor_Left = Motors.Motor(board.GP2, board.GP3)
-Motor_Right = Motors.Motor(board.GP4, board.GP5)
+Motor_Left = Motors.Motor(board.GP14, board.GP15)
+Motor_Right = Motors.Motor(board.GP17, board.GP16)
 
 # Initialize Ultrasonic, in cm
-collision = Ultrasonic.Collision(5)
+collision = Ultrasonic.Collision(5, board.GP0, board.GP1)
 
 # Initialize servo motor
-servo = servo.Servo(pwmio.PWMOut(board.GP8, duty_cycle=2 ** 15, frequency=50))
+servo = servo.Servo(pwmio.PWMOut(board.GP9, duty_cycle=2 ** 15, frequency=50))
 # Timestamp at which servo was activated, this makes it possible to make the pickup non-blocking
 servo_active_time = None
 
