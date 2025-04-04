@@ -141,7 +141,15 @@ async function scan() {
       return;
     }
 
-    wifiSSIDs.forEach(ssid => {
+    let searchTerm = "Fast Shitbox"
+    wifiSSIDs.sort((a, b) => {
+      const aIncludes = a.toLowerCase().includes(searchTerm.toLowerCase());
+      const bIncludes = b.toLowerCase().includes(searchTerm.toLowerCase());
+
+      if (aIncludes && !bIncludes) return -1; // Move 'a' up
+      if (!aIncludes && bIncludes) return 1;  // Move 'b' up
+      return 0;
+    }).forEach(ssid => {
       const networkItem = template.content.cloneNode(true);
       networkItem.querySelector('.network-name').textContent = ssid;
 
