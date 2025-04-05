@@ -10,7 +10,7 @@ from modules import Motors, Sensors, Ultrasonic, Statusled
 from adafruit_motor import servo # type: ignore
 
 # Initialize sensors
-# Using GP26, 27 and 28
+# Using GP26, 27 and 28 (To be changed (NEW PCB))
 # 'Sensor.status()' returns True of False based on threshold
 L_overline = Sensors.Sensor(board.GP26, 35000)
 R_overline = Sensors.Sensor(board.GP27, 40000)
