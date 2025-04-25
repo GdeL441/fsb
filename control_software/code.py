@@ -1,13 +1,13 @@
 import time
 import json
-import pwmio # type: ignore
+import pwmio  # type: ignore
 import board  # type: ignore
 from analogio import AnalogIn  # type: ignore
 import socketpool  # type: ignore
 import wifi  # type: ignore
 from adafruit_httpserver import Server, Request, Response, GET, Websocket  # type: ignore
 from modules import Motors, Sensors, Ultrasonic, Statusled
-from adafruit_motor import servo # type: ignore
+from adafruit_motor import servo  # type: ignore
 
 # Initialize sensors
 # Using GP26, 27 and 28 (To be changed (NEW PCB))
@@ -27,7 +27,7 @@ Motor_Right = Motors.Motor(board.GP17, board.GP16)
 collision = Ultrasonic.Collision(10, board.GP0, board.GP1)
 
 # Initialize servo motor
-servo = servo.Servo(pwmio.PWMOut(board.GP9, duty_cycle=2 ** 15, frequency=50))
+servo = servo.Servo(pwmio.PWMOut(board.GP9, duty_cycle=2**15, frequency=50))
 # Timestamp at which servo was activated, this makes it possible to make the pickup non-blocking
 servo_active_time = None
 
@@ -48,8 +48,7 @@ MANUAL_CONTROL_SPEEDS = {"left": 0, "right": 0}
 robot_pos = {"x": 6, "y": 0}
 DIRECTIONS = ["N", "E", "S", "W"]
 robot_heading = "N"  # "N" "E" "S" "W"
-green_towers = [] # Location of green towers
-
+green_towers = []  # Location of green towers
 
 # Steps the robot should take, later this should be computed at runtime(grid backtracking)
 steps = [
@@ -78,6 +77,7 @@ wifi.radio.start_ap(ssid=SSID)
 pool = socketpool.SocketPool(wifi.radio)
 server = Server(pool, "/static", debug=True)
 websocket = None
+message_queue = []
 
 # print IP adres
 print("My IP address is", wifi.radio.ipv4_address_ap)
@@ -89,6 +89,7 @@ Kd = 0.2  # Derivative gain (reduces overshoot)
 
 # Base Speed (PWM Duty Cycle, max 65535)
 BASE_SPEED = 20000
+TURN_SPEED = 20000
 
 # Integral & Derivative Terms
 error_sum = 0
@@ -108,10 +109,10 @@ def connect_client(request: Request):
 
     # Once a new websocket connects, we send all of the constants for PID, speed,
     # and thresholds to the frontend.
-    '''
     data = {
         "action": "setup",
         "speed": BASE_SPEED,
+        "turn_speed": TURN_SPEED,
         "P": Kp,
         "I": Ki,
         "D": Kd,
@@ -120,14 +121,13 @@ def connect_client(request: Request):
         "B": B_overline.threshold,
     }
 
-    websocket.send_message(json.dumps(data), fail_silently=True)
-'''
+    message_queue.append(json.dumps(data))
     return websocket
 
 
 # If there is a connected websocket connection, check if there is a new incoming message
 def poll_websocket():
-    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, green_towers
+    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, TURN_SPEED, steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, green_towers
     assert websocket != None
 
     data = websocket.receive(fail_silently=True)
@@ -169,6 +169,10 @@ def poll_websocket():
             print("update base speed", data)
             speed = max(min(65535, data["speed"]), 0)
             BASE_SPEED = speed
+        elif data["action"] == "update_turn_speed":
+            print("update turn base speed", data)
+            speed = max(min(65535, data["speed"]), 0)
+            TURN_SPEED = speed
         elif data["action"] == "manual_control":
             started = False
             MANUAL_CONTROL = not MANUAL_CONTROL
@@ -177,8 +181,6 @@ def poll_websocket():
                 return
 
             MANUAL_CONTROL_SPEEDS = data["speeds"]
-
-            
         else:
             print("Received other data: ", data)
 
@@ -204,16 +206,22 @@ def reset_state():
     servo_active_time = None
 
 
-def turn_left(turning_speed=30):
+# Turn the robot to the left with a given duty_cycle speed, used on intersection.
+# Defaults to TURN_SPEED
+def turn_left(duty_cycle=TURN_SPEED):
+    turning_speed = duty_cycle_to_speed(duty_cycle)
+    print(f"Turn left, speed={turning_speed}")
     Motor_Left.run(-turning_speed)
     Motor_Right.run(turning_speed)
-    print("Turn left")
 
 
-def turn_right(turning_speed=30):
+# Turn the robot to the right with a given duty_cycle speed, used on intersection.
+# Defaults to TURN_SPEED
+def turn_right(duty_cycle=TURN_SPEED):
+    turning_speed = duty_cycle_to_speed(duty_cycle)
+    print(f"Turn right, speed={turning_speed}")
     Motor_Right.run(-turning_speed)
     Motor_Left.run(turning_speed)
-    print("Turn right")
 
 
 def stop_motors():
@@ -221,19 +229,13 @@ def stop_motors():
     Motor_Left.stop()
 
 
-def manual_control():
-    left, right = MANUAL_CONTROL_SPEEDS["left"], MANUAL_CONTROL_SPEEDS["right"]
-    print(f"Manual control: left={left} right={right}")
-    Motor_Left.run(left)
-    Motor_Right.run(right)
-
 # whenever the car advances on the grid, update its position and heading for monitoring
 # on the frontend
 def update_pos_and_heading():
     global robot_pos, robot_heading
-    print(
-        "update pos and heading before", robot_pos, robot_heading, steps[current_step]
-    )
+    # print(
+    #     "update pos and heading before", robot_pos, robot_heading, steps[current_step]
+    # )
 
     if steps[current_step] == "FORWARD":
         # Move forward based on the current heading
@@ -269,13 +271,17 @@ def update_pos_and_heading():
 def next_step():
     global current_step, started, time_since_next_step, intersection_detected
 
+    # Calculate and update the new position and heading, since it has completed a step.
     update_pos_and_heading()
 
-    # TODO: check if there was a green dot on this intersection, if so, rotate the pick-up arm
-#Still crashes
-    #if find(green_towers, lambda t: t["x"] == robot_pos["x"] and t["y"]== robot_pos["y"] ):
-     #   print("Pick up item")
-     #   pickup()
+    # If there is a green tower on the current position, use the arm to pickup the tower.
+    tower = find(
+        green_towers, lambda t: t["x"] == robot_pos["x"] and t["y"] == robot_pos["y"]
+    )
+    if tower != None:
+        print("Pick up item with servo arm")
+        pickup()
+        green_towers.remove(tower)
 
     current_step += 1
     time_since_next_step = time.monotonic()
@@ -297,17 +303,25 @@ def next_step():
     if websocket != None:
         websocket.send_message(json.dumps(data), fail_silently=True)
 
+
+# Pick up a tower by turning the servo 180 degrees, keep track of this Timestamp
+# so after a specified duration, the arm moves back down, this is done so this
+# code doesn't block the car from making progres
 def pickup():
     global servo_active_time
     servo.angle = 180
     servo_active_time = time.monotonic()
 
+
+# Convert duty_cycle (0-65535) to % speeds (0-100)
 def duty_cycle_to_speed(duty_cycle):
     speed = (duty_cycle * 100) / 65535  # Convert duty cycle back to percentage
     return speed
 
 
+# Used for calibrating the LDRs from the app. Only in monitoring mode.
 def send_sensor_values():
+    assert MONITORING_SENSOR
     if websocket == None:
         return
 
@@ -319,9 +333,22 @@ def send_sensor_values():
     }
     websocket.send_message(json.dumps(data), fail_silently=True)
 
-# Utility function to search the first occurence in list with lambda function
+
+# If the car is in manual control mode, use the speeds received from the app
+# to turn the motors.
+def manual_control():
+    assert MANUAL_CONTROL
+    left, right = MANUAL_CONTROL_SPEEDS["left"], MANUAL_CONTROL_SPEEDS["right"]
+    print(f"Manual control: left={left} right={right}")
+    Motor_Left.run(left)
+    Motor_Right.run(right)
+
+
+# Utility function to search the first occurence in list with lambda function, if not found
+# return None.
 def find(lst, fn):
-  return next(x for x in lst if fn(x))
+    return next((x for x in lst if fn(x)), None)
+
 
 # Main loop
 while True:
@@ -329,8 +356,8 @@ while True:
     # print(f"Sensor right: {R_overline.status()}")
     # print(f"Sensor back: {B_overline.status()}")
     if started == True:
-        #status_led.next_object() # Invalid State
-        #if collision.detect():
+        # status_led.next_object() # Invalid State
+        # if collision.detect():
         #    print("Collision Detected! Resetting...")
         #    reset_state()
 
@@ -344,12 +371,12 @@ while True:
             if B_overline.status() and intersection_detected == True:
                 # A intersections was detected and now we are at the intersection -> move to next step
                 print("Car at intersection, go to next step")
+                # Todo if the next step is also forward, don't stop the motors here, just keep driving
                 stop_motors()
                 intersection_detected = False
-                time.sleep(0.5)
                 next_step()
             else:
-                print("Follow line with PID-controller")
+                # print("Follow line with PID-controller")
                 error = (
                     L_overline.value() - R_overline.value()
                 ) / 65535.0  # Normalize between -1 and 1
@@ -377,7 +404,7 @@ while True:
             # from instantly going to the next step on turns(before actually starting the turn)
             if steps[current_step] == "RIGHT":
                 # If the robot is turning right, it should stop turning once the right(TODO: left?) sensor hits the black line
-                turn_right(duty_cycle_to_speed(BASE_SPEED)*0.7) # Implement Turning Speed
+                turn_right()
                 if (
                     R_overline.status()
                     and time.monotonic() - time_since_next_step > 0.5
@@ -386,7 +413,7 @@ while True:
                     next_step()
             elif steps[current_step] == "LEFT":
                 # If the robot is turning left, it should stop turning once the left(TODO: right?) sensor hits the black line
-                turn_left(duty_cycle_to_speed(BASE_SPEED)*0.7)
+                turn_left()
                 if (
                     L_overline.status()
                     and time.monotonic() - time_since_next_step > 0.5
@@ -414,6 +441,10 @@ while True:
     server.poll()
 
     if websocket is not None:
+        # If there is a websocket connection, send all queued messages (setup data, ...)
+        while msg := message_queue.pop(0):
+            websocket.send_message(json.dumps(msg), fail_silently=True)
+
         poll_websocket()
 
     time.sleep(0.01)

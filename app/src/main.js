@@ -622,7 +622,7 @@ function calculateMotorSpeeds() {
   }
 
   if (!ws || manual_control) return
-  ws.send(JSON.stringify({ action: "manual_control", speeds: { left: leftSpeed, right: rightSpeed } }))
+  ws.send(JSON.stringify({ action: "manual_control_speeds", speeds: { left: leftSpeed, right: rightSpeed } }))
 }
 
 function keyPressed(e) {
