@@ -116,11 +116,11 @@ async function connectWs(url) {
     updateConnectButton(false);
     ws = null;
   };
-  const originalSend = ws.send;
-  ws.send = function(data) {
-    addToLog(JSON.parse(data), 'sent');
-    originalSend.call(this, data);
-  };
+  //const originalSend = ws.send;
+  //ws.send = function(data) {
+  //  addToLog(JSON.parse(data), 'sent');
+  //  originalSend.call(this, data);
+  //};
 };
 async function scan() {
   const loading = document.getElementById('loading');

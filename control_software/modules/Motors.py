@@ -10,17 +10,18 @@ class Motor:
 
     def run(self, speed):  # Speed -100 tot 100
         if -100 <= speed < 0:
-            self.direction.value = True
-            duty_cycle = speed_to_duty_cycle(speed)
-            self.speed.duty_cycle = duty_cycle
-
-        elif 0 < speed <= 100:
             self.direction.value = False
             duty_cycle = speed_to_duty_cycle(speed)
             self.speed.duty_cycle = duty_cycle
 
+        elif 0 < speed <= 100:
+            self.direction.value = True
+            duty_cycle = speed_to_duty_cycle(speed)
+            self.speed.duty_cycle = duty_cycle
+
         else:
-            print("Invalid speed")
+            print("Invalid speed: ", speed)
+
 
     def stop(self):
         self.speed.duty_cycle = 0

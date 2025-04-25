@@ -6,10 +6,8 @@ import time
 class Statusled:
     def __init__(self, pin, brightness=0.3):
         self.NUM_PIXELS = 35
-        self.brightness = brightness  
-        self.pixels = neopixel.NeoPixel(
-            pin, self.NUM_PIXELS, brightness=brightness, auto_write=False
-        )
+        self.brightness = brightness
+        self.pixels = neopixel.NeoPixel(pin, self.NUM_PIXELS, brightness=brightness, auto_write=False)
 
     def turn_off(self):
         self.pixels.fill((0, 0, 0))
