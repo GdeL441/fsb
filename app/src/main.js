@@ -1,9 +1,16 @@
+const { invoke } = window.__TAURI__.core;
+import { shortestPath } from "./backtrack.js"
+
+let ws = null;
+
 function addToLog(message, type) {
   const log = document.getElementById('websocket-log');
   const entry = document.createElement('div');
   const timestamp = new Date().toLocaleTimeString();
 
-  entry.innerHTML = `<span class="text-muted">[${timestamp}]</span> <span class="${type === 'sent' ? 'text-danger' : 'text-success'}">${type === 'sent' ? 'App' : 'Pico'}:</span> ${JSON.stringify(message)}`;
+  entry.innerHTML = `<span class="text-muted">[${timestamp}]</span> 
+    <span class="${type === 'sent' ? 'text-danger' : 'text-success'}">${type === 'sent' ? 'App' : 'Pico'}:</span> 
+    ${JSON.stringify(message)}`;
   log.appendChild(entry);
   log.scrollTop = log.scrollHeight;
 }
@@ -12,10 +19,6 @@ document.getElementById('clear-log-btn').addEventListener('click', () => {
   document.getElementById('websocket-log').innerHTML = '';
 });
 
-const { invoke } = window.__TAURI__.core;
-import { shortestPath } from "./backtrack.js"
-
-let ws = null;
 
 function updateConnectButton(connected) {
   const connectBtn = document.getElementById("connect-btn");
@@ -116,11 +119,11 @@ async function connectWs(url) {
     updateConnectButton(false);
     ws = null;
   };
-  //const originalSend = ws.send;
-  //ws.send = function(data) {
-  //  addToLog(JSON.parse(data), 'sent');
-  //  originalSend.call(this, data);
-  //};
+  const originalSend = ws.send;
+  ws.send = function(data) {
+    addToLog(JSON.parse(data), 'sent');
+    originalSend.call(this, data);
+  };
 };
 async function scan() {
   const loading = document.getElementById('loading');

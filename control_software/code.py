@@ -266,6 +266,13 @@ def update_pos_and_heading():
     if websocket != None:
         websocket.send_message(json.dumps(data), fail_silently=True)
 
+# Return the next step in the path or None
+def get_next_step():
+    if current_step + 1 == len(steps): 
+        return None
+
+    return steps[current_step + 1]
+
 
 # The car should advance to the next stap defined in the global path
 def next_step():
@@ -357,9 +364,9 @@ while True:
     # print(f"Sensor back: {B_overline.status()}")
     if started == True:
         # status_led.next_object() # Invalid State
-        # if collision.detect():
-        #    print("Collision Detected! Resetting...")
-        #    reset_state()
+        if collision.detect():
+            print("Collision Detected! Resetting...")
+            reset_state()
 
         if steps[current_step] == "FORWARD":
             # If the current step is moving forward, just follow the line until the next intersections
@@ -371,9 +378,13 @@ while True:
             if B_overline.status() and intersection_detected == True:
                 # A intersections was detected and now we are at the intersection -> move to next step
                 print("Car at intersection, go to next step")
-                # Todo if the next step is also forward, don't stop the motors here, just keep driving
-                stop_motors()
-                intersection_detected = False
+
+                # Only stop the motors if the path is finished or the next step is not FORWARD.
+                possible_next_step = get_next_step()
+                if possible_next_step == None or possible_next_step != "FORWARD":
+                    stop_motors()
+
+                intersection_detcted = False
                 next_step()
             else:
                 # print("Follow line with PID-controller")
@@ -421,7 +432,6 @@ while True:
                     stop_motors()
                     next_step()
     else:
-
         if MANUAL_CONTROL:
             manual_control()
 
@@ -438,6 +448,7 @@ while True:
             servo.angle = 0
             servo_active_time = None
 
+    # Polling HTTP server
     server.poll()
 
     if websocket is not None:
