@@ -16,8 +16,8 @@
   <!--   id="main-font-link"> -->
   <!-- [Tabler Icons] https://tablericons.com -->
   <link rel="stylesheet" href="assets/fonts/tabler-icons.min.css">
-  <!-- [Feather Icons] https://feathericons.com -->
-  <link rel="stylesheet" href="assets/fonts/feather.css">
+
+
 
 
   <!-- [Template CSS Files] -->
@@ -41,7 +41,7 @@
   <nav class="pc-sidebar">
     <div class="navbar-wrapper">
       <div class="m-header">
-        <a href="index.html" class="b-brand text-primary">
+        <a class="b-brand text-primary">
           <!-- ========   Change your logo from here   ============ -->
           <img src="assets/images/logo-dark.svg" class="img-fluid logo-lg" alt="logo">
         </a>
@@ -76,27 +76,19 @@
     </div>
   </nav>
   <!-- [ Sidebar Menu ] end --> <!-- [ Header Topbar ] start -->
-  <header class="pc-header">
+  <header class="pc-header"> 
     <div class="header-wrapper" style="height: 70px; display: flex; align-items: center;">
       <!-- [Mobile Media Block] start -->
       <div class="me-auto pc-mob-drp">
         <ul class="list-unstyled">
           <!-- ======= Menu collapse Icon ===== -->
-          <li class="pc-h-item pc-sidebar-collapse">
+          <li class="pc-h-item pc-sidebar-collapse" style="display: none;">
             <a href="#" class="pc-head-link ms-0" id="sidebar-hide">
               <i class="ti ti-menu-2"></i>
             </a>
           </li>
-          <li class="pc-h-item pc-sidebar-popup">
-            <a href="#" class="pc-head-link ms-0" id="mobile-collapse">
-              <i class="ti ti-menu-2"></i>
-            </a>
-          </li>
-          <li class="dropdown pc-h-item d-inline-flex d-md-none">
-            <a class="pc-head-link dropdown-toggle arrow-none m-0" data-bs-toggle="dropdown" href="#" role="button"
-              aria-haspopup="false" aria-expanded="false">
-            </a>
-          </li>
+
+
         </ul>
       </div>
       <!-- [Mobile Media Block end] -->
@@ -303,10 +295,15 @@
               <button id="apply-speed-btn" class="btn btn-primary" style="width: 150px;">Apply</button>
             </div>
             <div class="card-body">
-              <div class="d-flex align-items-center gap-3">
-                <label for="kp-value" class="mb-0" style="width: 120px;">Base Speed :</label>
+              <div class="d-flex align-items-center gap-3 mb-3">
+                <label for="kp-value" class="mb-0" style="width: 140px;">Straight line speed :</label>
                 <input type="number" class="form-control" id="speed-value" style="width: 100px;">
-                <p class="mb-0">(0 - 65535)</p>
+                <p class="mb-0">(0 - 100)</p>
+              </div>
+              <div class="d-flex align-items-center gap-3">
+                <label for="kp-value" class="mb-0" style="width: 140px;">Turning speed :</label>
+                <input type="number" class="form-control" id="turn-speed-value" style="width: 100px;">
+                <p class="mb-0">(0 - 100)</p>
               </div>
             </div>
           </div>
@@ -396,33 +393,11 @@
     </div>
   </footer>
 
-  <script src="assets/js/plugins/apexcharts.min.js"></script>
-  <script src="assets/js/plugins/popper.min.js"></script>
-  <script src="assets/js/plugins/simplebar.min.js"></script>
-  <script src="assets/js/plugins/bootstrap.min.js"></script>
-  <script src="assets/js/fonts/custom-font.js"></script>
+
+
   <script src="assets/js/pcoded.js"></script>
-  <script src="assets/js/plugins/feather.min.js"></script>
+
   <script type="module" defer src="./main.js"></script>
-
-
-
-
-
-  <script>layout_change('light');</script>
-
-
-
-
-  <script>change_box_container('false');</script>
-
-
-
-  <script>layout_rtl_change('false');</script>
-
-
-  <script>preset_change("preset-1");</script>
-
 
   <!-- <script>font_change("Public-Sans");</script> -->
 
