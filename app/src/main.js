@@ -122,9 +122,9 @@ async function connectWs(url) {
       let threshold = { L: data["L"], R: data["R"], B: data["B"] }
       localStorage.setItem("thresholds", JSON.stringify(threshold));
       setThresholds(threshold.L, threshold.R, threshold.B)
-      let speed = { speed: data["speed"] }
+      let speed = { speed: data["speed"], turnSpeed: data["turnSpeed"] }
       localStorage.setItem("speed", JSON.stringify(speed));
-      setSpeed(speed.speed)
+      setSpeed(speed.speed, speed.turnSpeed)
       let pid = { P: data["P"], I: data["I"], D: data["D"] }
       localStorage.setItem("pid", JSON.stringify(pid));
       setPID(pid.P, pid.I, pid.D)
@@ -632,10 +632,11 @@ window.addEventListener("DOMContentLoaded", () => {
   applySpeedBtn.addEventListener("click", async () => {
     if (!ws) return
     let speed = Number(document.querySelector("#speed-value").value)
+    let turnSpeed = Number(document.querySelector("#turn-speed-value").value)
     // Save to localStorage
-    localStorage.setItem("speed", JSON.stringify({ speed }));
+    localStorage.setItem("speed", JSON.stringify({ speed, turnSpeed }));
 
-    ws.send(JSON.stringify({ action: "update_speed", speed }))
+    ws.send(JSON.stringify({ action: "update_speed", speed, turnSpeed }))
   });
   clearBtn.addEventListener("click", async () => {
     path = []
@@ -757,12 +758,13 @@ function loadSpeed() {
   console.log(savedSpeed)
 
   if (savedSpeed) {
-    let { speed } = JSON.parse(savedSpeed);
-    setSpeed(speed)
+    let { speed, turnSpeed } = JSON.parse(savedSpeed);
+    setSpeed(speed, turnSpeed)
   }
 }
 
-function setSpeed(speed) {
+function setSpeed(speed, turnSpeed) {
   document.querySelector("#speed-value").value = speed
+  document.querySelector("#turn-speed-value").value = turnSpeed
 }
 

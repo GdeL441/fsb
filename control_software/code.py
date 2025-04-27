@@ -87,9 +87,9 @@ Kp = 1.5  # Proportional gain (adjust for faster/slower correction)
 Ki = 0.01  # Integral gain (adjust for minor drifting correction)
 Kd = 0.2  # Derivative gain (reduces overshoot)
 
-# Base Speed (PWM Duty Cycle, max 65535)
-BASE_SPEED = 20000
-TURN_SPEED = 20000
+# Base Speed (100% = max = 65535)
+BASE_SPEED = 40
+TURN_SPEED = 40
 
 # Integral & Derivative Terms
 error_sum = 0
@@ -112,7 +112,7 @@ def connect_client(request: Request):
     data = {
         "action": "setup",
         "speed": BASE_SPEED,
-        "turn_speed": TURN_SPEED,
+        "turnSpeed": TURN_SPEED,
         "P": Kp,
         "I": Ki,
         "D": Kd,
@@ -166,13 +166,11 @@ def poll_websocket():
             Ki = data["I"]
             Kd = data["D"]
         elif data["action"] == "update_speed":
-            print("update base speed", data)
-            speed = max(min(65535, data["speed"]), 0)
-            BASE_SPEED = speed
-        elif data["action"] == "update_turn_speed":
-            print("update turn base speed", data)
-            speed = max(min(65535, data["speed"]), 0)
-            TURN_SPEED = speed
+            print("update base and turn speed", data)
+            speed = max(min(100, data["speed"]), 0)
+            turn_speed = max(min(100, data["turnSpeed"]), 0)
+            BASE_SPEED =  speed
+            TURN_SPEED = turn_speed
         elif data["action"] == "manual_control":
             started = False
             MANUAL_CONTROL = not MANUAL_CONTROL
@@ -206,19 +204,17 @@ def reset_state():
     servo_active_time = None
 
 
-# Turn the robot to the left with a given duty_cycle speed, used on intersection.
+# Turn the robot to the left with a given speed, used on intersection.
 # Defaults to TURN_SPEED
-def turn_left(duty_cycle=TURN_SPEED):
-    turning_speed = duty_cycle_to_speed(duty_cycle)
+def turn_left(turning_speed=TURN_SPEED):
     print(f"Turn left, speed={turning_speed}")
     Motor_Left.run(-turning_speed)
     Motor_Right.run(turning_speed)
 
 
-# Turn the robot to the right with a given duty_cycle speed, used on intersection.
+# Turn the robot to the right with a given speed, used on intersection.
 # Defaults to TURN_SPEED
-def turn_right(duty_cycle=TURN_SPEED):
-    turning_speed = duty_cycle_to_speed(duty_cycle)
+def turn_right(turning_speed=TURN_SPEED):
     print(f"Turn right, speed={turning_speed}")
     Motor_Right.run(-turning_speed)
     Motor_Left.run(turning_speed)
@@ -321,9 +317,9 @@ def pickup():
 
 
 # Convert duty_cycle (0-65535) to % speeds (0-100)
-def duty_cycle_to_speed(duty_cycle):
-    speed = (duty_cycle * 100) / 65535  # Convert duty cycle back to percentage
-    return speed
+# def duty_cycle_to_speed(duty_cycle):
+#     speed = (duty_cycle * 100) / 65535  # Convert duty cycle back to percentage
+#     return speed
 
 
 # Used for calibrating the LDRs from the app. Only in monitoring mode.
@@ -406,8 +402,8 @@ while True:
                 left_speed = int(BASE_SPEED + (correction * BASE_SPEED))
                 right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
                 # print(f"Left speed {left_speed} Right speed {right_speed}")
-                Motor_Left.run(duty_cycle_to_speed(left_speed))
-                Motor_Right.run(duty_cycle_to_speed(right_speed))
+                Motor_Left.run(left_speed)
+                Motor_Right.run(right_speed)
 
         else:
             # The robot is currently turning, wait until back on line before moving to next step
