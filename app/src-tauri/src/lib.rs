@@ -1,7 +1,10 @@
-use dual_shock4_controller::joystick::{DeviceInfo, Joystick};
-use std::sync::{Arc, Mutex};
+use std::{
+    io::BufRead,
+    process::{Command, Stdio},
+    sync::{Arc, Mutex},
+};
 
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 use wifi_rs::{prelude::*, WiFi};
 
 #[tauri::command]
@@ -49,25 +52,6 @@ pub fn run() {
         interface: Some("en0"),
     });
 
-    let handler = std::thread::spawn(|| {
-        let joystick = Joystick::new();
-        let device_info = DeviceInfo {
-            vid: 0x054c,
-            pid: 0x05c4,
-        }; //HID\VID_054C&PID_05C4\7&3869AC07&0&0000
-        let device = joystick.connect(device_info).expect("can't find device!"); //
-        loop {
-            let mut buf = [0u8; 64];
-            device.read_timeout(&mut buf[..], 1000).unwrap();
-            let gamepad = joystick.get_gamepad().get_state(&buf);
-            if gamepad.x_button.pressed {
-                println!("× button is pressed");
-                break;
-            }
-        }
-    });
-    // tokio::spawn(ds4());
-
     let wifi = Arc::new(Mutex::new(WiFi::new(config)));
 
     tauri::Builder::default()
@@ -78,26 +62,43 @@ pub fn run() {
             app.get_webview_window("main").unwrap().open_devtools();
 
             app.manage(AppData { wifi });
+
+            let handle = app.handle().clone();
+
+            let _handler = std::thread::spawn(move || {
+                // let child = Command::new(". ./src-tauri/my-venv/bin/activate")
+                //     .spawn()
+                //     .expect("failed to activate python venv");
+                let mut child = Command::new("./run.sh")
+                    // .arg("read_ds4.py")
+                    .stdout(Stdio::piped()) // Capture the output
+                    .spawn()
+                    .expect("Failed to start Python process");
+
+                let mut reader =
+                    std::io::BufReader::new(child.stdout.take().expect("Failed to capture stdout"));
+
+                let mut buffer = String::new();
+                loop {
+                    match reader.read_line(&mut buffer) {
+                        Ok(0) => break, // End of output, exit the loop
+                        Ok(_) => {
+                            if !buffer.trim().is_empty() {
+                                handle.emit("ds4-data", buffer.clone()).unwrap();
+                            }
+
+                            buffer.clear(); // Clear buffer for the next line
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to read Python output: {}", e);
+                            break;
+                        }
+                    }
+                }
+                println!("break");
+            });
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-
-// async fn ds4() {
-//     let joystick = Joystick::new();
-//     let device_info = DeviceInfo {
-//         vid: 0x054c,
-//         pid: 0x05c4,
-//     }; //HID\VID_054C&PID_05C4\7&3869AC07&0&0000
-//     let device = joystick.connect(device_info).expect("can't find device!"); //
-//     loop {
-//         let mut buf = [0u8; 64];
-//         device.read_timeout(&mut buf[..], 1000).unwrap();
-//         let gamepad = joystick.get_gamepad().get_state(&buf);
-//         if gamepad.x_button.pressed {
-//             println!("× button is pressed");
-//             break;
-//         }
-//     }
-// }

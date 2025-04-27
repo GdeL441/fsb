@@ -1,5 +1,64 @@
-const { invoke } = window.__TAURI__.core;
+const { invoke, } = window.__TAURI__.core;
+const { listen } = window.__TAURI__.event;
+
 import { shortestPath } from "./backtrack.js"
+
+
+listen('ds4-data', (event) => {
+  let data = event.payload.split(",").map(Number)
+
+  updateJoystickPosition('leftStick', data[1], data[0]);
+  updateJoystickPosition('rightStick', data[2], data[3]);
+
+  // if(manual_control)
+    computeMotorSpeeds(data[1], data[0], data[2], data[3]);
+});
+
+
+// Compute motor speeds based on joystick input
+function computeMotorSpeeds(left_x, left_y, right_x, right_y) {
+  // Map joystick input (-1 to 1) to motor speed range (-100 to 100)
+  
+  // Forward/backward speed based on left_y (forward = positive, backward = negative)
+  const forwardSpeed = Math.round(left_y * -100); // Map left_y to range [-100, 100]
+
+  // Turning adjustment based on left_x (turning left = negative, turning right = positive)
+  const turnAdjustment = Math.round(left_x * -50); // Turn sensitivity (adjust if needed)
+
+  // Right joystick could fine-tune the turning (right_x)
+  const fineTurnAdjustment = Math.round(right_x * 25); // Fine-tune turning (less sensitive)
+
+  // Calculate final left and right motor speeds
+  const leftMotorSpeed = Math.min(Math.max(forwardSpeed - turnAdjustment + fineTurnAdjustment, -100), 100)
+  const rightMotorSpeed = Math.min(Math.max(forwardSpeed + turnAdjustment - fineTurnAdjustment, -100), 100)
+
+
+  // sendMotorSpeeds(leftMotorSpeed, rightMotorSpeed);
+  // console.log(`left=${leftMotorSpeed}, right=${rightMotorSpeed}`)
+  if (!ws || !manual_control) return
+  ws.send(JSON.stringify({ action: "manual_control_speeds", speeds: { left: leftMotorSpeed, right: rightMotorSpeed } }))
+}
+
+// Update the position of a joystick's stick
+function updateJoystickPosition(joystickId, x, y) {
+  const joystick = document.getElementById(joystickId);
+  
+  // Limit joystick values between -1 and 1 (they should already be between these values)
+  const xPos = Math.min(Math.max(x, -1), 1);
+  const yPos = Math.min(Math.max(y, -1), 1);
+
+  // Convert joystick values to pixel positions within the joystick container
+  const container = joystick.parentElement; // The parent div (the joystick container)
+  const radius = container.offsetWidth / 2; // The radius of the joystick container
+  
+  // Calculate the new position of the stick
+  const offsetX = xPos * (radius - joystick.offsetWidth / 2); // Adjust for the stick's size
+  const offsetY = yPos * (radius - joystick.offsetHeight / 2); // Adjust for the stick's size
+
+  // Set the new position using CSS
+  joystick.style.left = `calc(50% + ${offsetX}px)`;
+  joystick.style.top = `calc(50% + ${offsetY}px)`;
+}
 
 let ws = null;
 
@@ -624,7 +683,7 @@ function calculateMotorSpeeds() {
     leftSpeed += 50
   }
 
-  if (!ws || manual_control) return
+  if (!ws || !manual_control) return
   ws.send(JSON.stringify({ action: "manual_control_speeds", speeds: { left: leftSpeed, right: rightSpeed } }))
 }
 
