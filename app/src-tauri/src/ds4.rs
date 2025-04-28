@@ -78,7 +78,7 @@ impl DS4Controller {
                                 data.up = true;
                             }
                             Button::DPadDown => {
-                                println!("arrow up");
+                                println!("arrow down");
                                 data.down = true
                             }
                             _ => {}

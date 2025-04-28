@@ -39,6 +39,13 @@ function sendWsAction(action) {
   ws.send(JSON.stringify({ action }))
 }
 
+document.getElementById("down").addEventListener("click", () => {
+  sendWsAction("arm_down")
+})
+
+document.getElementById("up").addEventListener("click", () => {
+  sendWsAction("arm_up")
+})
 
 // Compute motor speeds based on joystick input
 function computeMotorSpeeds(left_x, left_y, right_x, right_y) {
