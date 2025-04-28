@@ -17,17 +17,17 @@ listen('ds4-data', (event) => {
 
   // Add active class to the relevant button
   if (data.up) {
-    const button = document.getElementById("arm_up");
+    const button = document.getElementById("up");
     if (button) {
       button.classList.add('active');
     }
-    sendWsAction("up")
+    sendWsAction("arm_up")
   } else if (data.down) {
-    const button = document.getElementById("arm_down");
+    const button = document.getElementById("down");
     if (button) {
       button.classList.add('active');
     }
-    sendWsAction("down")
+    sendWsAction("arm_down")
   }
 
   computeMotorSpeeds(data.left_x, -data.left_y, data.right_x, -data.right_y);
