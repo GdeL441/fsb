@@ -10,15 +10,40 @@ listen('ds4-data', (event) => {
   updateJoystickPosition('leftStick', data.left_x, -data.left_y);
   updateJoystickPosition('rightStick', data.right_x, -data.right_y);
 
-  // if(manual_control)
+  // Remove active class from all buttons first
+  (data.up || data.down) && document.querySelectorAll('.dpad-button').forEach(button => {
+    button.classList.remove('active');
+  });
+
+  // Add active class to the relevant button
+  if (data.up) {
+    const button = document.getElementById("arm_up");
+    if (button) {
+      button.classList.add('active');
+    }
+    sendWsAction("up")
+  } else if (data.down) {
+    const button = document.getElementById("arm_down");
+    if (button) {
+      button.classList.add('active');
+    }
+    sendWsAction("down")
+  }
+
   computeMotorSpeeds(data.left_x, -data.left_y, data.right_x, -data.right_y);
 });
+
+function sendWsAction(action) {
+  if (!ws) return
+
+  ws.send(JSON.stringify({ action }))
+}
 
 
 // Compute motor speeds based on joystick input
 function computeMotorSpeeds(left_x, left_y, right_x, right_y) {
   // Map joystick input (-1 to 1) to motor speed range (-100 to 100)
-  
+
   // Forward/backward speed based on left_y (forward = positive, backward = negative)
   const forwardSpeed = Math.round(left_y * -100); // Map left_y to range [-100, 100]
 
@@ -42,7 +67,7 @@ function computeMotorSpeeds(left_x, left_y, right_x, right_y) {
 // Update the position of a joystick's stick
 function updateJoystickPosition(joystickId, x, y) {
   const joystick = document.getElementById(joystickId);
-  
+
   // Limit joystick values between -1 and 1
   const xPos = Math.min(Math.max(x, -1), 1);
   const yPos = Math.min(Math.max(y, -1), 1);
@@ -50,7 +75,7 @@ function updateJoystickPosition(joystickId, x, y) {
   // Convert joystick values to pixel positions
   const container = joystick.parentElement;
   const radius = container.offsetWidth / 2;
-  
+
   // Calculate the new position of the stick
   const offsetX = xPos * (radius - joystick.offsetWidth / 2);
   const offsetY = yPos * (radius - joystick.offsetHeight / 2);

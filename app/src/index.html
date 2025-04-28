@@ -76,7 +76,7 @@
     </div>
   </nav>
   <!-- [ Sidebar Menu ] end --> <!-- [ Header Topbar ] start -->
-  <header class="pc-header"> 
+  <header class="pc-header">
     <div class="header-wrapper" style="height: 70px; display: flex; align-items: center;">
       <!-- [Mobile Media Block] start -->
       <div class="me-auto pc-mob-drp">
@@ -204,18 +204,27 @@
 
             </div>
             <div class="controller-container">
-    <div class="joystick-container">
-      <div class="joystick" id="leftJoystick">
-        <div class="stick" id="leftStick"></div>
-      </div>
-    </div>
+              <div class="dpad">
+                <button id="up" class="dpad-button">▲</button>
+                <div class="horizontal-row">
+                  <div class="spacer"></div>
+                  <div class="spacer"></div>
+                </div>
+                <button id="down" class="dpad-button active">▼</button>
+              </div>
+              <div class="joystick-container">
+                <div class="joystick" id="leftJoystick">
+                  <div class="stick" id="leftStick"></div>
+                </div>
+              </div>
 
-    <div class="joystick-container">
-      <div class="joystick" id="rightJoystick">
-        <div class="stick" id="rightStick"></div>
-      </div>
-    </div>
-  </div>
+              <div class="joystick-container">
+                <div class="joystick" id="rightJoystick">
+                  <div class="stick" id="rightStick"></div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>

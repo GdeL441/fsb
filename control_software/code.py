@@ -179,6 +179,16 @@ def poll_websocket():
                 return
 
             MANUAL_CONTROL_SPEEDS = data["speeds"]
+        elif data["action"] == "arm_up":
+            if not MANUAL_CONTROL:
+                return
+
+            servo.angle = 180
+        elif data["action"] == "arm_down":
+            if not MANUAL_CONTROL:
+                return
+
+            servo.angle = 0
         else:
             print("Received other data: ", data)
 
