@@ -17,16 +17,10 @@ listen('ds4-data', (event) => {
 
   // Add active class to the relevant button
   if (data.up) {
-    const button = document.getElementById("up");
-    if (button) {
-      button.classList.add('active');
-    }
+    document.getElementById("up").classList.add("active");
     sendWsAction("arm_up")
   } else if (data.down) {
-    const button = document.getElementById("down");
-    if (button) {
-      button.classList.add('active');
-    }
+    document.getElementById("down").classList.add("active");
     sendWsAction("arm_down")
   }
 
@@ -41,10 +35,14 @@ function sendWsAction(action) {
 
 document.getElementById("down").addEventListener("click", () => {
   sendWsAction("arm_down")
+  document.getElementById("down")?.classList.add("active");
+  document.getElementById("up")?.classList.remove("active");
 })
 
 document.getElementById("up").addEventListener("click", () => {
   sendWsAction("arm_up")
+  document.getElementById("up")?.classList.add("active");
+  document.getElementById("down")?.classList.remove("active");
 })
 
 // Compute motor speeds based on joystick input
