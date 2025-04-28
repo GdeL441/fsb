@@ -1,11 +1,11 @@
 use std::{
-    io::BufRead,
-    process::{Command, Stdio},
     sync::{Arc, Mutex},
 };
 
-use tauri::{Emitter, Manager, State};
+use tauri::{Manager, State, Emitter};
 use wifi_rs::{prelude::*, WiFi};
+
+mod ds4;
 
 #[tauri::command]
 async fn scan() -> Vec<String> {
@@ -38,12 +38,20 @@ fn connect(state: State<'_, AppData>, ssid: String) -> Option<String> {
         }
         Err(err) => println!("The following error occurred: {:?}", err),
     }
-    return None;
+    None
+}
+
+// Added new command to get controller data
+#[tauri::command]
+fn get_controller_data(state: State<'_, AppData>) -> Option<ds4::ControllerData> {
+    let ds4 = state.ds4.lock().unwrap();
+    ds4.receive()
 }
 
 #[derive(Clone, Debug)]
 struct AppData {
     wifi: Arc<Mutex<WiFi>>,
+    ds4: Arc<Mutex<ds4::DS4Controller>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -53,50 +61,34 @@ pub fn run() {
     });
 
     let wifi = Arc::new(Mutex::new(WiFi::new(config)));
+    let ds4 = Arc::new(Mutex::new(ds4::DS4Controller::new()));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![scan, connect, get_url])
+        .invoke_handler(tauri::generate_handler![
+            scan,
+            connect,
+            get_url,
+            get_controller_data  // Added new command to handler
+        ])
         .setup(|app| {
             #[cfg(debug_assertions)]
             app.get_webview_window("main").unwrap().open_devtools();
 
-            app.manage(AppData { wifi });
+            app.manage(AppData { wifi, ds4: ds4.clone() });
 
             let handle = app.handle().clone();
 
-            let _handler = std::thread::spawn(move || {
-                // let child = Command::new(". ./src-tauri/my-venv/bin/activate")
-                //     .spawn()
-                //     .expect("failed to activate python venv");
-                let mut child = Command::new("./run.sh")
-                    // .arg("read_ds4.py")
-                    .stdout(Stdio::piped()) // Capture the output
-                    .spawn()
-                    .expect("Failed to start Python process");
-
-                let mut reader =
-                    std::io::BufReader::new(child.stdout.take().expect("Failed to capture stdout"));
-
-                let mut buffer = String::new();
+            std::thread::spawn(move || {
+                let ds4 = ds4.lock().unwrap();
                 loop {
-                    match reader.read_line(&mut buffer) {
-                        Ok(0) => break, // End of output, exit the loop
-                        Ok(_) => {
-                            if !buffer.trim().is_empty() {
-                                handle.emit("ds4-data", buffer.clone()).unwrap();
-                            }
-
-                            buffer.clear(); // Clear buffer for the next line
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to read Python output: {}", e);
-                            break;
-                        }
+                    if let Some(data) = ds4.receive() {
+                        handle.emit("ds4-data", data).unwrap();
                     }
+                    std::thread::sleep(std::time::Duration::from_millis(10));
                 }
-                println!("break");
             });
+
             Ok(())
         })
         .run(tauri::generate_context!())

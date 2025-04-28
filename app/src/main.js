@@ -5,13 +5,13 @@ import { shortestPath } from "./backtrack.js"
 
 
 listen('ds4-data', (event) => {
-  let data = event.payload.split(",").map(Number)
-
-  updateJoystickPosition('leftStick', data[1], data[0]);
-  updateJoystickPosition('rightStick', data[2], data[3]);
+  const data = event.payload;
+  // Swap x and y, and invert as needed
+  updateJoystickPosition('leftStick', data.left_x, -data.left_y);
+  updateJoystickPosition('rightStick', data.right_x, -data.right_y);
 
   // if(manual_control)
-    computeMotorSpeeds(data[1], data[0], data[2], data[3]);
+  computeMotorSpeeds(data.left_x, -data.left_y, data.right_x, -data.right_y);
 });
 
 
@@ -43,17 +43,17 @@ function computeMotorSpeeds(left_x, left_y, right_x, right_y) {
 function updateJoystickPosition(joystickId, x, y) {
   const joystick = document.getElementById(joystickId);
   
-  // Limit joystick values between -1 and 1 (they should already be between these values)
+  // Limit joystick values between -1 and 1
   const xPos = Math.min(Math.max(x, -1), 1);
   const yPos = Math.min(Math.max(y, -1), 1);
 
-  // Convert joystick values to pixel positions within the joystick container
-  const container = joystick.parentElement; // The parent div (the joystick container)
-  const radius = container.offsetWidth / 2; // The radius of the joystick container
+  // Convert joystick values to pixel positions
+  const container = joystick.parentElement;
+  const radius = container.offsetWidth / 2;
   
   // Calculate the new position of the stick
-  const offsetX = xPos * (radius - joystick.offsetWidth / 2); // Adjust for the stick's size
-  const offsetY = yPos * (radius - joystick.offsetHeight / 2); // Adjust for the stick's size
+  const offsetX = xPos * (radius - joystick.offsetWidth / 2);
+  const offsetY = yPos * (radius - joystick.offsetHeight / 2);
 
   // Set the new position using CSS
   joystick.style.left = `calc(50% + ${offsetX}px)`;
@@ -766,5 +766,14 @@ function loadSpeed() {
 function setSpeed(speed, turnSpeed) {
   document.querySelector("#speed-value").value = speed
   document.querySelector("#turn-speed-value").value = turnSpeed
+}
+
+// Example usage of the new command
+async function getControllerData() {
+  const data = await invoke('get_controller_data');
+  if (data) {
+    updateJoystickPosition('leftStick', data.left_y, data.left_x);
+    updateJoystickPosition('rightStick', data.right_y, data.right_x);
+  }
 }
 
