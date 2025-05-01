@@ -88,12 +88,18 @@ Ki = 0.01  # Integral gain (adjust for minor drifting correction)
 Kd = 0.2  # Derivative gain (reduces overshoot)
 
 # Base Speed (100% = max = 65535)
-BASE_SPEED = 40
-TURN_SPEED = 40
+BASE_SPEED = 40  # %
+TURN_SPEED = 40  # %
 
 # Integral & Derivative Terms
 error_sum = 0
 last_error = 0
+
+
+# While not connected
+#   status_led.loading_animation()
+#   time.sleep(0;01)
+
 
 
 # called when server received new connection
@@ -107,8 +113,9 @@ def connect_client(request: Request):
 
     websocket = Websocket(request)
 
-    # Once a new websocket connects, we send all of the constants for PID, speed,
+    # Once a new websocket connects, we play a nice animation and we send all of the constants for PID, speed,
     # and thresholds to the frontend.
+    # status_led.connected()
     data = {
         "action": "setup",
         "speed": BASE_SPEED,
@@ -211,7 +218,7 @@ def reset_state():
     robot_pos = {"x": 6, "y": 0}
     robot_heading = "N"  # "N" "E" "S" "W"
     green_towers = []
-    servo_active_time = None
+    servo_active_time = None # Ook nog servos naar 0° zetten of gebeurt dit direct?
 
 
 # Turn the robot to the left with a given speed, used on intersection.
@@ -288,6 +295,7 @@ def next_step():
     update_pos_and_heading()
 
     # If there is a green tower on the current position, use the arm to pickup the tower.
+    # Maybe we change this to a pickup command from the backtracking algorithm?
     tower = find(
         green_towers, lambda t: t["x"] == robot_pos["x"] and t["y"] == robot_pos["y"]
     )
@@ -321,6 +329,7 @@ def next_step():
 # so after a specified duration, the arm moves back down, this is done so this
 # code doesn't block the car from making progres
 def pickup():
+    # status_led.collection()
     global servo_active_time
     servo.angle = 180
     servo_active_time = time.monotonic()

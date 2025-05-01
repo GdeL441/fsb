@@ -3,7 +3,7 @@ import digitalio  # type: ignore
 
 
 class Motor:
-    def __init__(self, pin_speed, pin_direction):
+    def __init__(self, pin_speed, pin_direction):  # Initialize the motor
         self.speed = pwmio.PWMOut(pin_speed, frequency=1000)
         self.direction = digitalio.DigitalInOut(pin_direction)
         self.direction.direction = digitalio.Direction.OUTPUT
@@ -23,7 +23,7 @@ class Motor:
             print("Invalid speed: ", speed)
 
 
-    def stop(self):
+    def stop(self):  # Stop the motor
         self.speed.duty_cycle = 0
 
 
