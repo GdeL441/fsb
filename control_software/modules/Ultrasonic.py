@@ -9,6 +9,4 @@ class Collision:
         self.threshold = threshold
 
     def detect(self):
-        print(self.us100.distance)
-        print(self.threshold)
-        return False # self.us100.distance < self.threshold
+        return self.us100.distance < self.threshold

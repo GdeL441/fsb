@@ -98,7 +98,7 @@ last_error = 0
 
 # While not connected
 #   status_led.loading_animation()
-#   time.sleep(0;01)
+#   time.sleep(0.01)
 
 
 
@@ -115,7 +115,7 @@ def connect_client(request: Request):
 
     # Once a new websocket connects, we play a nice animation and we send all of the constants for PID, speed,
     # and thresholds to the frontend.
-    # status_led.connected()
+    status_led.connected()
     data = {
         "action": "setup",
         "speed": BASE_SPEED,
@@ -329,7 +329,7 @@ def next_step():
 # so after a specified duration, the arm moves back down, this is done so this
 # code doesn't block the car from making progres
 def pickup():
-    # status_led.collection()
+    status_led.collection()
     global servo_active_time
     servo.angle = 180
     servo_active_time = time.monotonic()
@@ -369,7 +369,10 @@ def manual_control():
 # Utility function to search the first occurence in list with lambda function, if not found
 # return None.
 def find(lst, fn):
-    return next((x for x in lst if fn(x)), None)
+    for x in lst:
+        if fn(x):
+            return x
+    return None
 
 
 # Main loop
@@ -378,10 +381,10 @@ while True:
     # print(f"Sensor right: {R_overline.status()}")
     # print(f"Sensor back: {B_overline.status()}")
     if started == True:
-        # status_led.next_object() # Invalid State
-        if collision.detect():
-            print("Collision Detected! Resetting...")
-            reset_state()
+        status_led.next_object() # Invalid State
+        #if collision.detect():
+        #    print("Collision Detected! Resetting...")
+        #    reset_state()
 
         if steps[current_step] == "FORWARD":
             # If the current step is moving forward, just follow the line until the next intersections
@@ -450,11 +453,12 @@ while True:
         if MANUAL_CONTROL:
             manual_control()
 
-        if MONITORING_SENSOR:
+        elif MONITORING_SENSOR:
             send_sensor_values()
 
-        stop_motors()
-        status_led.turn_off()
+        else:
+            stop_motors()
+            status_led.turn_off()
 
     if servo_active_time != None:
         # The servo is activated to move up, if it has been in this 'up' state for longer than 1 second,
@@ -468,9 +472,12 @@ while True:
 
     if websocket is not None:
         # If there is a websocket connection, send all queued messages (setup data, ...)
-        while msg := message_queue.pop(0):
+        while len(message_queue) > 0:
+            msg = message_queue.pop(0)
             websocket.send_message(json.dumps(msg), fail_silently=True)
 
         poll_websocket()
+    else:
+        status_led.loading_animation()
 
-    time.sleep(0.01)
+    time.sleep(0.1)
