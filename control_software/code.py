@@ -27,7 +27,11 @@ Motor_Right = Motors.Motor(board.GP17, board.GP16)
 collision = Ultrasonic.Collision(10, board.GP0, board.GP1)
 
 # Initialize servo motor
-servo = servo.Servo(pwmio.PWMOut(board.GP9, duty_cycle=2**15, frequency=50))
+servo = servo.Servo(
+    pwmio.PWMOut(board.GP9, duty_cycle=2**15, frequency=50),
+    min_pulse=500,
+    max_pulse=2500
+)
 # Timestamp at which servo was activated, this makes it possible to make the pickup non-blocking
 servo_active_time = None
 
@@ -190,12 +194,12 @@ def poll_websocket():
             if not MANUAL_CONTROL:
                 return
 
-            servo.angle = 180
+            servo.angle = 0
         elif data["action"] == "arm_down":
             if not MANUAL_CONTROL:
                 return
 
-            servo.angle = 0
+            servo.angle = 180
         else:
             print("Received other data: ", data)
 
@@ -219,6 +223,7 @@ def reset_state():
     robot_heading = "N"  # "N" "E" "S" "W"
     green_towers = []
     servo_active_time = None # Ook nog servos naar 0° zetten of gebeurt dit direct?
+    servo.angle = 180
 
 
 # Turn the robot to the left with a given speed, used on intersection.
@@ -382,9 +387,9 @@ while True:
     # print(f"Sensor back: {B_overline.status()}")
     if started == True:
         status_led.next_object() # Invalid State
-        #if collision.detect():
-        #    print("Collision Detected! Resetting...")
-        #    reset_state()
+        if collision.detect():
+            print("Collision Detected! Resetting...")
+            reset_state()
 
         if steps[current_step] == "FORWARD":
             # If the current step is moving forward, just follow the line until the next intersections
@@ -478,7 +483,7 @@ while True:
             websocket.send_message(json.dumps(msg), fail_silently=True)
 
         poll_websocket()
-    else:
-        status_led.loading_animation()
+    #else:
+        #status_led.loading_animation()
 
     time.sleep(0.02)
