@@ -334,9 +334,9 @@ def next_step():
 # so after a specified duration, the arm moves back down, this is done so this
 # code doesn't block the car from making progres
 def pickup():
-    status_led.collection()
+    #status_led.collection()
     global servo_active_time
-    servo.angle = 180
+    servo.angle = 0
     servo_active_time = time.monotonic()
 
 
@@ -366,7 +366,7 @@ def send_sensor_values():
 def manual_control():
     assert MANUAL_CONTROL
     left, right = MANUAL_CONTROL_SPEEDS["left"], MANUAL_CONTROL_SPEEDS["right"]
-    print(f"Manual control: left={left} right={right}")
+    #print(f"Manual control: left={left} right={right}")
     Motor_Left.run(left)
     Motor_Right.run(right)
 
@@ -386,7 +386,7 @@ while True:
     # print(f"Sensor right: {R_overline.status()}")
     # print(f"Sensor back: {B_overline.status()}")
     if started == True:
-        status_led.next_object() # Invalid State
+        # status_led.next_object() # Invalid State
         if collision.detect():
             print("Collision Detected! Resetting...")
             reset_state()
@@ -398,8 +398,7 @@ while True:
                 print("Front of car over intersection")
                 intersection_detected = True
 
-            if (B_overline.status() and intersection_detected == True 
-                and time.monotonic() - time_since_next_step > 0.5):
+            if B_overline.status() and intersection_detected == True:
                 # A intersections was detected and now we are at the intersection -> move to next step
                 print("Car at intersection, go to next step")
 
@@ -469,8 +468,8 @@ while True:
     if servo_active_time != None:
         # The servo is activated to move up, if it has been in this 'up' state for longer than 1 second,
         # move the servo back down
-        if time.monotonic() - servo_active_time > 1:
-            servo.angle = 0
+        if time.monotonic() - servo_active_time > 0.7:
+            servo.angle = 180
             servo_active_time = None
 
     # Polling HTTP server
@@ -483,7 +482,7 @@ while True:
             websocket.send_message(json.dumps(msg), fail_silently=True)
 
         poll_websocket()
-    #else:
-        #status_led.loading_animation()
+    else:
+        status_led.loading_animation()
 
-    time.sleep(0.02)
+    time.sleep(0.01)

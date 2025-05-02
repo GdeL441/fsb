@@ -21,10 +21,7 @@ class Motor:
         if speed == 0:
             self.stop()
 
-        else:
-            print("Invalid speed: ", speed)
-        print(self.direction.value)
-        print(self.speed.duty_cycle)
+        
 
 
     def stop(self):  # Stop the motor
