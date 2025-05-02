@@ -393,7 +393,8 @@ while True:
                 print("Front of car over intersection")
                 intersection_detected = True
 
-            if B_overline.status() and intersection_detected == True:
+            if (B_overline.status() and intersection_detected == True 
+                and time.monotonic() - time_since_next_step > 0.5):
                 # A intersections was detected and now we are at the intersection -> move to next step
                 print("Car at intersection, go to next step")
 
@@ -480,4 +481,4 @@ while True:
     else:
         status_led.loading_animation()
 
-    time.sleep(0.1)
+    time.sleep(0.02)

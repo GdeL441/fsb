@@ -1,8 +1,6 @@
-use std::{
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
-use tauri::{Manager, State, Emitter};
+use tauri::{Emitter, Manager, State};
 use wifi_rs::{prelude::*, WiFi};
 
 mod ds4;
@@ -69,13 +67,16 @@ pub fn run() {
             scan,
             connect,
             get_url,
-            get_controller_data  // Added new command to handler
+            get_controller_data // Added new command to handler
         ])
         .setup(|app| {
             #[cfg(debug_assertions)]
             app.get_webview_window("main").unwrap().open_devtools();
 
-            app.manage(AppData { wifi, ds4: ds4.clone() });
+            app.manage(AppData {
+                wifi,
+                ds4: ds4.clone(),
+            });
 
             let handle = app.handle().clone();
 
@@ -85,7 +86,7 @@ pub fn run() {
                     if let Some(data) = ds4.receive() {
                         handle.emit("ds4-data", data).unwrap();
                     }
-                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    std::thread::sleep(std::time::Duration::from_millis(50));
                 }
             });
 
