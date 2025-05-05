@@ -576,11 +576,18 @@ window.addEventListener("DOMContentLoaded", () => {
   connectBtn.addEventListener("click", async () => {
     if (ws) {
       ws.close();
+      console.log('WebSocket connection closed');
+      statusDot.classList.remove("bg-success");
+      statusDot.classList.add("bg-danger");
+      document.getElementById("status").textContent = "Disconnected";
+      updateConnectButton(false);
+      ws = null;
       return;
+    } else {
+      const wsUrl = `ws://${ipInput.value}/ws`;
+      console.log("Connect to", wsUrl);
+      connectWs(wsUrl);
     }
-    const wsUrl = `ws://${ipInput.value}/ws`;
-    console.log("Connect to", wsUrl);
-    connectWs(wsUrl);
   });
 
   startBtn.addEventListener("click", async () => {
@@ -588,13 +595,15 @@ window.addEventListener("DOMContentLoaded", () => {
     if (startPos)
       drawDot(startPos.x, startPos.y, "N");
 
-    if (!ws) return
+    if (!ws || !thresholds || !speeds) return
 
+
+    let data = { thresholds, speed: speeds.speed, turnSpeed: speeds.turnSPeed }
     if (solution) {
       let green_towers = dots.filter(dot => dot.color == "green").map(({ x, y }) => ({ x, y }))
-      ws.send(JSON.stringify({ action: "start", path: solution.directions, heading: "N", startX: startPos?.x, startY: startPos?.y, green_towers }))
+      ws.send(JSON.stringify({ action: "start", path: solution.directions, heading: "N", startX: startPos?.x, startY: startPos?.y, green_towers, ...data }))
     } else {
-      ws.send(JSON.stringify({ action: "start" }))
+      ws.send(JSON.stringify({ action: "start", ...data }))
     }
 
     startTimer()
@@ -751,12 +760,14 @@ function keyUp(e) {
   calculateMotorSpeeds()
 }
 
+let thresholds
 function loadThresholds() {
   let savedThresholds = localStorage.getItem("thresholds");
   console.log(savedThresholds)
 
   if (savedThresholds) {
     let { L, R, B } = JSON.parse(savedThresholds);
+    thresholds = { R, L, B }
     setThresholds(L, R, B)
   }
 }
@@ -783,12 +794,14 @@ function setPID(P, I, D) {
   document.querySelector("#kd-value").value = D
 }
 
+let speeds
 function loadSpeed() {
   let savedSpeed = localStorage.getItem("speed");
   console.log(savedSpeed)
 
   if (savedSpeed) {
     let { speed, turnSpeed } = JSON.parse(savedSpeed);
+    speeds = { speed, turnSpeed }
     setSpeed(speed, turnSpeed)
   }
 }
