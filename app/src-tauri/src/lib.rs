@@ -86,7 +86,8 @@ pub fn run() {
                     if let Some(data) = ds4.receive() {
                         handle.emit("ds4-data", data).unwrap();
                     }
-                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    // Increase sleep time to reduce data rate
+                    std::thread::sleep(std::time::Duration::from_millis(50));
                 }
             });
 

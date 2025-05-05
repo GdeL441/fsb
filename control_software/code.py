@@ -86,18 +86,30 @@ message_queue = []
 # print IP adres
 print("My IP address is", wifi.radio.ipv4_address_ap)
 
-# PID Constants
+# PID Constants for line following
 Kp = 1.5  # Proportional gain (adjust for faster/slower correction)
 Ki = 0.01  # Integral gain (adjust for minor drifting correction)
 Kd = 0.2  # Derivative gain (reduces overshoot)
+
+# PID Constants for turning
+TURN_Kp = 2.0  # Proportional gain for turning
+TURN_Ki = 0.05  # Integral gain for turning
+TURN_Kd = 0.5  # Derivative gain for turning
 
 # Base Speed (100% = max = 65535)
 BASE_SPEED = 40  # %
 TURN_SPEED = 40  # %
 
-# Integral & Derivative Terms
+# Integral & Derivative Terms for line following
 error_sum = 0
 last_error = 0
+
+# Integral & Derivative Terms for turning
+turn_error_sum = 0
+turn_last_error = 0
+
+# Target heading for turning PID
+target_heading = 0  # 0 = straight, positive = right, negative = left
 
 
 # While not connected
@@ -138,84 +150,98 @@ def connect_client(request: Request):
 
 # If there is a connected websocket connection, check if there is a new incoming message
 def poll_websocket():
-    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, TURN_SPEED, steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, green_towers
-    assert websocket != None
+    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, TURN_SPEED, steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, green_towers, websocket, time_since_next_step
+    
+    if websocket is None:
+        return
 
-    data = websocket.receive(fail_silently=True)
-    if data is not None:
-        data = json.loads(data)
+    try:
+        data = websocket.receive(fail_silently=True)
+        if data is not None:
+            try:
+                data = json.loads(data)
 
-        if data["action"] == "start":
-            MANUAL_CONTROL = False
-            if (
-                data["path"] != None
-                and data["startX"] != None
-                and data["startY"] != None
-                and data["heading"] != None
-                and data["green_towers"] != None
-            ):
-                steps = data["path"]
-                robot_pos = {"x": data["startX"], "y": data["startY"]}
-                robot_heading = data["heading"]
-                green_towers = data["green_towers"]
+                if data["action"] == "start":
+                    time_since_next_step = time.monotonic()
+                    MANUAL_CONTROL = False
+                    if (
+                        data["path"] != None
+                        and data["startX"] != None
+                        and data["startY"] != None
+                        and data["heading"] != None
+                        and data["green_towers"] != None
+                    ):
+                        steps = data["path"]
+                        robot_pos = {"x": data["startX"], "y": data["startY"]}
+                        robot_heading = data["heading"]
+                        green_towers = data["green_towers"]
 
-            print(f"start data {data}")
-            if data["thresholds"] != None: 
-                L_overline.set_threshold(data["thresholds"]["L"])
-                R_overline.set_threshold(data["thresholds"]["R"])
-                B_overline.set_threshold(data["thresholds"]["B"])
+                    print(f"start data {data}")
+                    if data.get("thresholds") != None: 
+                        L_overline.set_threshold(data["thresholds"]["L"])
+                        R_overline.set_threshold(data["thresholds"]["R"])
+                        B_overline.set_threshold(data["thresholds"]["B"])
 
-            if data["speed"] != None:
-                speed = max(min(100, data["speed"]), 0)
-                BASE_SPEED =  speed
-            if data["turnSpeed"] != None:
-                turn_speed = max(min(100, data["turnSpeed"]), 0)
-                TURN_SPEED = turn_speed
+                    if data.get("speed") != None:
+                        speed = max(min(100, data["speed"]), 0)
+                        BASE_SPEED = speed
+                    if data.get("turnSpeed") != None:
+                        turn_speed = max(min(100, data["turnSpeed"]), 0)
+                        TURN_SPEED = turn_speed
 
+                    started = True
+                elif data["action"] == "stop":
+                    started = False
+                elif data["action"] == "reset":
+                    reset_state()
+                elif data["action"] == "monitor_sensor":
+                    MONITORING_SENSOR = not MONITORING_SENSOR
+                elif data["action"] == "set_threshold":
+                    print("update sensor thresholds", data)
+                    L_overline.set_threshold(data["L"])
+                    R_overline.set_threshold(data["R"])
+                    B_overline.set_threshold(data["B"])
+                elif data["action"] == "update_pid":
+                    print("update PID parameters", data)
+                    Kp = data["P"]
+                    Ki = data["I"]
+                    Kd = data["D"]
+                elif data["action"] == "update_speed":
+                    print("update base and turn speed", data)
+                    speed = max(min(100, data["speed"]), 0)
+                    turn_speed = max(min(100, data["turnSpeed"]), 0)
+                    BASE_SPEED = speed
+                    TURN_SPEED = turn_speed
+                elif data["action"] == "manual_control":
+                    started = False
+                    MANUAL_CONTROL = not MANUAL_CONTROL
+                elif data["action"] == "manual_control_speeds":
+                    if not MANUAL_CONTROL:
+                        return
 
-            started = True
-        elif data["action"] == "stop":
-            started = False
-        elif data["action"] == "reset":
-            reset_state()
-        elif data["action"] == "monitor_sensor":
-            MONITORING_SENSOR = not MONITORING_SENSOR
-        elif data["action"] == "set_threshold":
-            print("update sensor thresholds", data)
-            L_overline.set_threshold(data["L"])
-            R_overline.set_threshold(data["R"])
-            B_overline.set_threshold(data["B"])
-        elif data["action"] == "update_pid":
-            print("update PID parameters", data)
-            Kp = data["P"]
-            Ki = data["I"]
-            Kd = data["D"]
-        elif data["action"] == "update_speed":
-            print("update base and turn speed", data)
-            speed = max(min(100, data["speed"]), 0)
-            turn_speed = max(min(100, data["turnSpeed"]), 0)
-            BASE_SPEED =  speed
-            TURN_SPEED = turn_speed
-        elif data["action"] == "manual_control":
-            started = False
-            MANUAL_CONTROL = not MANUAL_CONTROL
-        elif data["action"] == "manual_control_speeds":
-            if not MANUAL_CONTROL:
-                return
+                    MANUAL_CONTROL_SPEEDS = data["speeds"]
+                elif data["action"] == "arm_up":
+                    if not MANUAL_CONTROL:
+                        return
 
-            MANUAL_CONTROL_SPEEDS = data["speeds"]
-        elif data["action"] == "arm_up":
-            if not MANUAL_CONTROL:
-                return
+                    servo.angle = 0
+                elif data["action"] == "arm_down":
+                    if not MANUAL_CONTROL:
+                        return
 
-            servo.angle = 0
-        elif data["action"] == "arm_down":
-            if not MANUAL_CONTROL:
-                return
-
-            servo.angle = 180
-        else:
-            print("Received other data: ", data)
+                    servo.angle = 180
+                else:
+                    print("Received other data: ", data)
+            except (ValueError, KeyError) as e:
+                print(f"Error processing WebSocket data: {e}")
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        # If there's an error with the websocket, close it to allow reconnection
+        try:
+            websocket.close()
+        except:
+            pass
+        websocket = None
 
 
 server.start(port=PORT)
@@ -455,7 +481,7 @@ while True:
                 turn_right()
                 if (
                     R_overline.status()
-                    and time.monotonic() - time_since_next_step > 0.5
+                    and time.monotonic() - time_since_next_step > 0.9
                 ):
                     stop_motors()
                     next_step()
@@ -464,7 +490,7 @@ while True:
                 turn_left()
                 if (
                     L_overline.status()
-                    and time.monotonic() - time_since_next_step > 0.5
+                    and time.monotonic() - time_since_next_step > 0.9
                 ):
                     stop_motors()
                     next_step()
@@ -499,4 +525,4 @@ while True:
     else:
         status_led.loading_animation()
 
-    time.sleep(0.01)
+    time.sleep(0.02)

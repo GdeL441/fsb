@@ -27,7 +27,12 @@ impl DS4Controller {
     }
 
     pub fn receive(&self) -> Option<ControllerData> {
-        self.rx.try_recv().ok()
+        // Drain any buffered messages to get the most recent one
+        let mut latest = None;
+        while let Ok(data) = self.rx.try_recv() {
+            latest = Some(data);
+        }
+        latest
     }
 
     fn spawn_controller_thread(tx: Sender<ControllerData>) {
@@ -57,21 +62,12 @@ impl DS4Controller {
                         EventType::AxisChanged(axis, value, _) => {
                             match axis {
                                 Axis::LeftStickX => data.left_x = value,
-                                Axis::LeftStickY => data.left_y = value, // Remove the inversion
+                                Axis::LeftStickY => data.left_y = value,
                                 Axis::RightStickX => data.right_x = value,
-                                Axis::RightStickY => data.right_y = value, // Remove the inversion
+                                Axis::RightStickY => data.right_y = value,
                                 _ => {}
                             }
                         }
-                        EventType::ButtonChanged(btn, value, _) => match btn {
-                            Button::LeftTrigger2 => {
-                                println!("left trigger: {value}");
-                            }
-                            Button::RightTrigger2 => {
-                                println!("right trigger: {value}");
-                            }
-                            _ => {}
-                        },
                         EventType::ButtonPressed(btn, _) => match btn {
                             Button::DPadUp => {
                                 println!("arrow up");
@@ -91,7 +87,8 @@ impl DS4Controller {
                     break;
                 }
 
-                thread::sleep(Duration::from_millis(30));
+                // Increase sleep time to reduce data rate
+                thread::sleep(Duration::from_millis(100));
             }
         });
     }
