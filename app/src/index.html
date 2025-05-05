@@ -116,6 +116,9 @@
   <!-- [ Main Content ] start -->
 
   <div class="pc-container">
+    <div id="calibration-notification" class="alert alert-success position-fixed top-0 start-50 translate-middle-x mt-5 d-none" style="z-index: 1050; width: auto; max-width: 80%;">
+      <strong>Success!</strong> Sensors calibrated successfully!
+    </div>
     <div class="pc-content" id="dashboard">
       <!-- [ Main Content ] start -->
       <div class="row">
@@ -125,9 +128,10 @@
             <div class="card-body">
               <div class="d-flex gap-3 align-items-center">
                 <div class="d-flex gap-3" style="width: 100%;">
-                  <button type=" button" class="btn btn-primary" id="start">Start</button>
+                  <button type="button" class="btn btn-primary" id="start">Start</button>
                   <button type="button" class="btn btn-danger" id="stop">Stop</button>
                   <button type="button" class="btn btn-warning" id="reset">Reset</button>
+                  <button type="button" class="btn btn-info" id="calibrate-btn">Calibrate Sensors</button>
                   <button type="button" class="btn btn-outline-secondary" id="clear-btn"
                     style="margin-left: auto;">Clear</button>
                   <button type="button" class="btn btn-success" id="solve">Compute optimal

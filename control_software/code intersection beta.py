@@ -123,10 +123,39 @@ MIN_TURN_TIME = 0.5  # Minimum turning time before checking sensors (seconds)
 MAX_TURN_TIME = 2.0  # Maximum turning time before forcing completion (seconds)
 TURN_SLOWDOWN_FACTOR = 0.7  # Factor to slow down turning speed when approaching target
 
+# Add a throttling mechanism for WebSocket messages
+last_message_time = time.monotonic()
+MIN_MESSAGE_INTERVAL = 0.05  # Minimum time between messages (50ms)
 
-
-
-
+# Improve the WebSocket send function with throttling and error handling
+def send_websocket_message(data, important=False):
+    """
+    Send a message through the WebSocket with throttling and error handling.
+    
+    Args:
+        data: Dictionary to send as JSON
+        important: If True, bypass throttling for critical messages
+    """
+    global websocket, last_message_time
+    
+    if websocket is None:
+        return False
+    
+    current_time = time.monotonic()
+    
+    # Skip non-important messages if we're sending too frequently
+    if not important and (current_time - last_message_time < MIN_MESSAGE_INTERVAL):
+        return False
+    
+    try:
+        # Convert to JSON only once
+        json_data = json.dumps(data)
+        websocket.send_message(json_data, fail_silently=True)
+        last_message_time = current_time
+        return True
+    except Exception as e:
+        print(f"Error sending WebSocket message: {e}")
+        return False
 
 # called when server received new connection
 @server.route("/ws", GET)
@@ -240,6 +269,10 @@ def poll_websocket():
                         return
 
                     servo.angle = 175
+                elif data["action"] == "calibrate":
+                    print("Calibrating sensors...")
+                    # Use a slightly higher threshold for better line detection
+                    calibrate_all(threshold=0.8)
                 else:
                     print("Received other data: ", data)
             except (ValueError, KeyError) as e:
@@ -306,10 +339,7 @@ def stop_motors():
 # on the frontend
 def update_pos_and_heading():
     global robot_pos, robot_heading
-    # print(
-    #     "update pos and heading before", robot_pos, robot_heading, steps[current_step]
-    # )
-
+    
     if steps[current_step] == "FORWARD":
         # Move forward based on the current heading
         if robot_heading == "N":
@@ -320,11 +350,9 @@ def update_pos_and_heading():
             robot_pos["x"] += 1
         elif robot_heading == "W":
             robot_pos["x"] -= 1
-
     elif steps[current_step] == "RIGHT":
         # Turn 90 degrees to the right (clockwise)
         robot_heading = DIRECTIONS[(DIRECTIONS.index(robot_heading) + 1) % 4]
-
     elif steps[current_step] == "LEFT":
         # Turn 90 degrees to the left (counterclockwise)
         robot_heading = DIRECTIONS[(DIRECTIONS.index(robot_heading) - 1) % 4]
@@ -335,9 +363,9 @@ def update_pos_and_heading():
         "heading": robot_heading,
     }
     print("update pos and heading after", robot_pos, robot_heading, steps[current_step])
-
-    if websocket != None:
-        websocket.send_message(json.dumps(data), fail_silently=True)
+    
+    # Position updates are important
+    send_websocket_message(data, important=True)
 
 # Return the next step in the path or None
 def get_next_step():
@@ -350,12 +378,11 @@ def get_next_step():
 # The car should advance to the next stap defined in the global path
 def next_step():
     global current_step, started, time_since_next_step, intersection_detected
-
-    # Calculate and update the new position and heading, since it has completed a step.
+    
+    # Calculate and update the new position and heading
     update_pos_and_heading()
-
-    # If there is a green tower on the current position, use the arm to pickup the tower.
-    # Maybe we change this to a pickup command from the backtracking algorithm?
+    
+    # Check for green tower pickup
     tower = find(
         green_towers, lambda t: t["x"] == robot_pos["x"] and t["y"] == robot_pos["y"]
     )
@@ -374,15 +401,11 @@ def next_step():
         data = {
             "action": "finished",
         }
-
-        if websocket != None:
-            websocket.send_message(json.dumps(data), fail_silently=True)
+        send_websocket_message(data, important=True)
         return
 
     data = {"action": "next_step", "step": steps[current_step]}
-
-    if websocket != None:
-        websocket.send_message(json.dumps(data), fail_silently=True)
+    send_websocket_message(data, important=True)
 
 
 # Pick up a tower by turning the servo 180 degrees, keep track of this Timestamp
@@ -404,16 +427,15 @@ def pickup():
 # Used for calibrating the LDRs from the app. Only in monitoring mode.
 def send_sensor_values():
     assert MONITORING_SENSOR
-    if websocket == None:
-        return
-
+    
     data = {
         "action": "sensor_values",
         "L": L_overline.value(),
         "R": R_overline.value(),
         "B": B_overline.value(),
     }
-    websocket.send_message(json.dumps(data), fail_silently=True)
+    # Sensor values are less critical, so no important flag
+    send_websocket_message(data)
 
 
 # If the car is in manual control mode, use the speeds received from the app
@@ -441,22 +463,33 @@ def calibrate_sensor(sensor, calibration_threshold = 0.8):
     white_value = sensor.value()
     threshold = white_value * calibration_threshold
     sensor.set_threshold(threshold)
-    # Send new thresholds to frontend????
-    return None
+    return threshold
 
-def calibrate_all(threshold = 0.8):
-    calibrate_sensor(R_overline, threshold)
-    calibrate_sensor(L_overline, threshold)
-    calibrate_sensor(B_overline, threshold)
+def calibrate_all(threshold = 0.8, send = True):
+    r_threshold = calibrate_sensor(R_overline, threshold)
+    l_threshold = calibrate_sensor(L_overline, threshold)
+    b_threshold = calibrate_sensor(B_overline, threshold)
     status_led.calibration()
-    print("All sensors should have been calibrated")
+    print("All sensors have been calibrated")
+    
+    # Send the new threshold values to the frontend
+    if send:
+        data = {
+            "action": "thresholds_updated",
+            "thresholds": {
+                "L": l_threshold,
+                "R": r_threshold,
+                "B": b_threshold
+            }
+        }
+        send_websocket_message(data, important=True)
 
 # Main loop
 while True:
     
     
     if not calibrated: # This will calibrate the sensors when booting the car. Can be changed to when a connection has been established.
-        calibrate_all()
+        calibrate_all(0.8, False)
         calibrated = True
         
     # print(f"Sensor left: {L_overline.status()}")

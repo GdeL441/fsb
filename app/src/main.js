@@ -203,6 +203,25 @@ async function connectWs(url) {
       }
       document.querySelector("#score").innerText = score
       stopTimer()
+    } else if (data.action === "thresholds_updated") {
+      console.log("Received calibrated thresholds:", data.thresholds);
+      
+      // Update the threshold input fields
+      thresholds = data.thresholds;
+      setThresholds(data.thresholds.L, data.thresholds.R, data.thresholds.B);
+      
+      // Save to localStorage
+      localStorage.setItem("thresholds", JSON.stringify(data.thresholds));
+      
+      // Reset the calibrate button if it's in loading state
+      const calibrateBtn = document.querySelector("#calibrate-btn");
+      if (calibrateBtn) {
+        calibrateBtn.disabled = false;
+        calibrateBtn.textContent = "Calibrate Sensors";
+      }
+      
+      // Show notification
+      showCalibrationNotification();
     }
   };
   ws.onerror = error => {
@@ -577,6 +596,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const clearBtn = document.querySelector("#clear-btn")
   const sidebarBtn = document.querySelector("#sidebar-hide")
   const manualBtn = document.querySelector("#manual-control-btn")
+  const calibrateBtn = document.querySelector("#calibrate-btn")
 
   loading = document.querySelector("#loading")
   loading.classList.add("d-none")
@@ -752,6 +772,23 @@ window.addEventListener("DOMContentLoaded", () => {
 
     ws.send(JSON.stringify({ action: "manual_control" }))
   });
+
+  calibrateBtn.addEventListener("click", async () => {
+    if (!ws) return;
+    
+    // Show a loading state on the button
+    calibrateBtn.disabled = true;
+    calibrateBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Calibrating...';
+    
+    // Send calibration command
+    ws.send(JSON.stringify({ action: "calibrate" }));
+    
+    // Reset button after 3 seconds (even if no response)
+    setTimeout(() => {
+      calibrateBtn.disabled = false;
+      calibrateBtn.textContent = "Calibrate Sensors";
+    }, 3000);
+  });
 });
 
 
@@ -887,6 +924,20 @@ async function getControllerData() {
   if (data) {
     updateJoystickPosition('leftStick', data.left_y, data.left_x);
     updateJoystickPosition('rightStick', data.right_y, data.right_x);
+  }
+}
+
+// Add a function to show the calibration notification
+function showCalibrationNotification() {
+  const notification = document.getElementById("calibration-notification");
+  if (notification) {
+    // Remove d-none class to show the notification
+    notification.classList.remove("d-none");
+    
+    // Hide the notification after 3 seconds
+    setTimeout(() => {
+      notification.classList.add("d-none");
+    }, 3000);
   }
 }
 

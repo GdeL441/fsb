@@ -149,3 +149,32 @@
 .text-danger {
   color: #dc3545 !important;
 }
+
+/* Calibrate button styling */
+#calibrate-btn {
+  background-color: #17a2b8;
+  border-color: #17a2b8;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+#calibrate-btn:hover {
+  background-color: #138496;
+  border-color: #117a8b;
+  box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.5);
+}
+
+#calibrate-btn:focus {
+  box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.5);
+}
+
+#calibrate-btn:active {
+  background-color: #117a8b;
+  border-color: #10707f;
+}
+
+#calibrate-btn:disabled {
+  background-color: #5bc0de;
+  border-color: #5bc0de;
+  opacity: 0.65;
+}
