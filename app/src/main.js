@@ -651,6 +651,7 @@ window.addEventListener("DOMContentLoaded", () => {
     let L = Number(document.querySelector("#left-sensor-threshold").value)
     let R = Number(document.querySelector("#right-sensor-threshold").value)
     let B = Number(document.querySelector("#back-sensor-threshold").value)
+    thresholds = { R, L, B }
     // Save to localStorage
     localStorage.setItem("thresholds", JSON.stringify({ L, R, B }));
 
@@ -672,6 +673,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!ws) return
     let speed = Number(document.querySelector("#speed-value").value)
     let turnSpeed = Number(document.querySelector("#turn-speed-value").value)
+    speeds = { speed, turnSpeed }
     // Save to localStorage
     localStorage.setItem("speed", JSON.stringify({ speed, turnSpeed }));
 
