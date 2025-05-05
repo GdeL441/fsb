@@ -112,9 +112,7 @@ turn_last_error = 0
 target_heading = 0  # 0 = straight, positive = right, negative = left
 
 
-# While not connected
-#   status_led.loading_animation()
-#   time.sleep(0.01)
+
 
 
 
@@ -185,7 +183,7 @@ def poll_websocket():
                     if data["speed"] != None:
                         speed = max(min(100, data["speed"]), 0)
                         BASE_SPEED = speed
-                    if data["turnSpeed"] != None:
+                    if data.get("turnSpeed") != None:
                         turn_speed = max(min(100, data["turnSpeed"]), 0)
                         TURN_SPEED = turn_speed
 
@@ -229,7 +227,7 @@ def poll_websocket():
                     if not MANUAL_CONTROL:
                         return
 
-                    servo.angle = 180
+                    servo.angle = 175
                 else:
                     print("Received other data: ", data)
             except (ValueError, KeyError) as e:
@@ -263,7 +261,7 @@ def reset_state():
     robot_heading = "N"  # "N" "E" "S" "W"
     green_towers = []
     servo_active_time = None # Ook nog servos naar 0° zetten of gebeurt dit direct?
-    servo.angle = 180
+    servo.angle = 175
 
 
 # Turn the robot to the left with a given speed, used on intersection.
@@ -511,7 +509,7 @@ while True:
         # The servo is activated to move up, if it has been in this 'up' state for longer than 1 second,
         # move the servo back down
         if time.monotonic() - servo_active_time > 0.7:
-            servo.angle = 180
+            servo.angle = 175
             servo_active_time = None
 
     # Polling HTTP server
@@ -527,4 +525,4 @@ while True:
     else:
         status_led.loading_animation()
 
-    time.sleep(0.02)
+

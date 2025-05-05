@@ -598,7 +598,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!ws || !thresholds || !speeds) return
 
 
-    let data = { thresholds, speed: speeds.speed, turnSpeed: speeds.turnSPeed }
+    let data = { thresholds, speed: speeds.speed, turnSpeed: speeds.turnSpeed }
     if (solution) {
       let green_towers = dots.filter(dot => dot.color == "green").map(({ x, y }) => ({ x, y }))
       ws.send(JSON.stringify({ action: "start", path: solution.directions, heading: "N", startX: startPos?.x, startY: startPos?.y, green_towers, ...data }))
