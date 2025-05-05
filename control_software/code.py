@@ -12,9 +12,9 @@ from adafruit_motor import servo  # type: ignore
 # Initialize sensors
 # Using GP26, 27 and 28 (To be changed (NEW PCB))
 # 'Sensor.status()' returns True of False based on threshold
-L_overline = Sensors.Sensor(board.GP26, 12000)
+L_overline = Sensors.Sensor(board.GP28, 12000)
 R_overline = Sensors.Sensor(board.GP27, 14000)
-B_overline = Sensors.Sensor(board.GP28, 10000)
+B_overline = Sensors.Sensor(board.GP26, 10000)
 
 # Initialize status sensor (To Be Replaced by RGB Strip)
 status_led = Statusled.Statusled(board.GP18)
@@ -120,19 +120,19 @@ def connect_client(request: Request):
     # Once a new websocket connects, we play a nice animation and we send all of the constants for PID, speed,
     # and thresholds to the frontend.
     status_led.connected()
-    data = {
-        "action": "setup",
-        "speed": BASE_SPEED,
-        "turnSpeed": TURN_SPEED,
-        "P": Kp,
-        "I": Ki,
-        "D": Kd,
-        "L": L_overline.threshold,
-        "R": R_overline.threshold,
-        "B": B_overline.threshold,
-    }
+    # data = {
+    #     "action": "setup",
+    #     "speed": BASE_SPEED,
+    #     "turnSpeed": TURN_SPEED,
+    #     "P": Kp,
+    #     "I": Ki,
+    #     "D": Kd,
+    #     "L": L_overline.threshold,
+    #     "R": R_overline.threshold,
+    #     "B": B_overline.threshold,
+    # }
 
-    message_queue.append(json.dumps(data))
+    # message_queue.append(json.dumps(data))
     return websocket
 
 
@@ -158,6 +158,20 @@ def poll_websocket():
                 robot_pos = {"x": data["startX"], "y": data["startY"]}
                 robot_heading = data["heading"]
                 green_towers = data["green_towers"]
+
+            print(f"start data {data}")
+            if data["thresholds"] != None: 
+                L_overline.set_threshold(data["thresholds"]["L"])
+                R_overline.set_threshold(data["thresholds"]["R"])
+                B_overline.set_threshold(data["thresholds"]["B"])
+
+            if data["speed"] != None:
+                speed = max(min(100, data["speed"]), 0)
+                BASE_SPEED =  speed
+            if data["turnSpeed"] != None:
+                turn_speed = max(min(100, data["turnSpeed"]), 0)
+                TURN_SPEED = turn_speed
+
 
             started = True
         elif data["action"] == "stop":
