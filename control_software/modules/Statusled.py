@@ -125,9 +125,126 @@ class Statusled:
             self.pixels.fill((0, 255, 0))
             self.pixels.show()
 
+    def manual_control(self):
+        # Number of lit pixels in the spinning segment
+        segment_length = 5
+        
+        # Get current position based on time
+        t = time.monotonic()
+        # Speed of rotation (complete rotation every 1.5 seconds)
+        rotation_speed = 0.67  
+    
+        # Calculate the position of the first pixel in the segment
+        position = int((t * rotation_speed * self.NUM_PIXELS) % self.NUM_PIXELS)
+        
+        # Turn off all pixels first
+        self.pixels.fill((0, 0, 0))
+        
+        # Light up the segment with a gradient effect
+        for i in range(segment_length):
+            # Calculate pixel position with wraparound
+            pixel_pos = (position + i) % self.NUM_PIXELS
+        
+            # Create a gradient effect within the segment (brighter at the front)
+            brightness = 1.0 - (i / segment_length)
+        
+            # Set pixel color (white with gradient)
+            self.pixels[pixel_pos] = (
+                int(255 * brightness),  # R
+                int(0 * brightness),  # G
+                int(0 * brightness),  # B
+            )
+    
+        # Show the updated pixels
+        self.pixels.show()
 
 
+    def waiting_for_orders(self):
+        # Number of lit pixels in the spinning segment
+        segment_length = 5
+        
+        # Get current position based on time
+        t = time.monotonic()
+        # Speed of rotation (complete rotation every 1.5 seconds)
+        rotation_speed = 0.67  
+    
+        # Calculate the position of the first pixel in the segment
+        position = int((t * rotation_speed * self.NUM_PIXELS) % self.NUM_PIXELS)
+        
+        # Turn off all pixels first
+        self.pixels.fill((0, 0, 0))
+        
+        # Light up the segment with a gradient effect
+        for i in range(segment_length):
+            # Calculate pixel position with wraparound
+            pixel_pos = (position + i) % self.NUM_PIXELS
+        
+            # Create a gradient effect within the segment (brighter at the front)
+            brightness = 1.0 - (i / segment_length)
+        
+            # Set pixel color (white with gradient)
+            self.pixels[pixel_pos] = (
+                int(255 * brightness),  # R
+                int(255 * brightness),  # G
+                int(255 * brightness),  # B
+            )
+    
+        # Show the updated pixels
+        self.pixels.show()
 
+    def collision(self):
+        for _ in range(2):
+            time.sleep(0.1)
+            self.pixels.fill((0, 0, 0))
+            self.pixels.show()
+            time.sleep(0.1)
+            self.pixels.fill((255, 0, 0))
+            self.pixels.show()
+
+    def calibration(self, duration = 0.66):
+        start_time = time.monotonic()
+        elapsed = 0        
+        # Run until the animation is complete
+        while elapsed < duration:
+            # Calculate current progress (0.0 to 1.0)
+            elapsed = time.monotonic() - start_time
+            progress = min(elapsed / duration, 1.0)
+            
+            # Calculate how many LEDs to light up
+            lit_pixels = int(self.NUM_PIXELS * progress)
+            
+            # Turn off all pixels first
+            self.pixels.fill((0, 0, 0))
+            
+            # Light up the pixels with color
+            for i in range(lit_pixels):
+                # Optional: add slight brightness variation
+                brightness = 0.8 + (0.2 * (i / self.NUM_PIXELS))
+                
+                self.pixels[i] = (
+                    0,                      # R
+                    int(255 * brightness),  # G
+                    int(255 * brightness)   # B
+                )
+            
+            # Show the updated pixels
+            self.pixels.show()
+            
+            # Small delay to control update rate
+            time.sleep(0.01)
+        
+        # Ensure all pixels are lit at the end
+        self.pixels.fill((0, 255, 0))
+        self.pixels.show()
+        
+        # Optional: flash the completed circle a couple times to indicate completion
+        for _ in range(2):
+            time.sleep(0.1)
+            self.pixels.fill((0, 0, 0))
+            self.pixels.show()
+            time.sleep(0.1)
+            self.pixels.fill((0, 255, 255))
+            self.pixels.show()
 
 def smooth_sine(frequency):
     """

@@ -147,7 +147,18 @@ async function connectWs(url) {
   ws.onmessage = event => {
     const data = JSON.parse(event.data);
     addToLog(data, 'received');
-    if (data.action == "setup") {
+    
+    if (data.action === "sensor_values") {
+      // Get current thresholds
+      const thresholdL = Number(document.querySelector("#left-sensor-threshold").value);
+      const thresholdR = Number(document.querySelector("#right-sensor-threshold").value);
+      const thresholdB = Number(document.querySelector("#back-sensor-threshold").value);
+      
+      // Update displays with color coding
+      updateSensorValueDisplay("left-sensor-value", data.L, thresholdL);
+      updateSensorValueDisplay("right-sensor-value", data.R, thresholdR);
+      updateSensorValueDisplay("back-sensor-value", data.B, thresholdB);
+    } else if (data.action == "setup") {
       console.log("received setup data", data)
       let threshold = { L: data["L"], R: data["R"], B: data["B"] }
       localStorage.setItem("thresholds", JSON.stringify(threshold));
@@ -192,13 +203,7 @@ async function connectWs(url) {
       }
       document.querySelector("#score").innerText = score
       stopTimer()
-    } else if (data.action == "sensor_values") {
-      console.log("Sensor values", data)
-      document.querySelector("#left-sensor-value").textContent = data.L
-      document.querySelector("#right-sensor-value").textContent = data.R
-      document.querySelector("#back-sensor-value").textContent = data.B
     }
-
   };
   ws.onerror = error => {
     console.error(error);
@@ -404,29 +409,46 @@ function drawPath() {
   const offsetY = (canvas.height - gridHeight) / 2;
 
   for (let i = 0; i < path.length - 1; i++) {
-    let from = path[i], to = path[i + 1]
+    let from = path[i], to = path[i + 1];
     const fromX = offsetX + from.x * cellSize, fromY = offsetY + (ROWS - from.y) * cellSize;
     const toX = offsetX + to.x * cellSize, toY = offsetY + (ROWS - to.y) * cellSize;
 
+    // Draw the line
     ctx.strokeStyle = "purple";
     ctx.lineWidth = 6;
     ctx.beginPath();
-
-    ctx.moveTo(fromX, fromY); // Start at circle edge
-    ctx.lineTo(toX, toY); // Base of arrow at circle edge
-    ctx.stroke()
-
-    // ctx.fillStyle = "purple";
-    // ctx.beginPath();
-    // const arrowSize = cellSize / 4; // Slightly smaller arrow
-    // const dotX = (fromX + toX) / 2
-    // const dotY = (fromY + toY) / 2
-    // const dotRadius = cellSize / 4;
-    // ctx.moveTo(dotX, dotY - dotRadius - arrowSize); // Start at circle edge
-    // ctx.lineTo(dotX - arrowSize / 2, dotY - dotRadius); // Base of arrow at circle edge
-    // ctx.lineTo(dotX + arrowSize / 2, dotY - dotRadius);
-    // ctx.fill()
-  };
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    ctx.stroke();
+    
+    // Calculate midpoint for arrow
+    const midX = (fromX + toX) / 2;
+    const midY = (fromY + toY) / 2;
+    
+    // Calculate direction angle
+    const angle = Math.atan2(toY - fromY, toX - fromX);
+    
+    // Draw direction arrow at midpoint
+    const arrowSize = cellSize / 5;
+    
+    // Use the same purple color as the line
+    ctx.fillStyle = "purple";
+    
+    // Save current context state
+    ctx.save();
+    ctx.translate(midX, midY);
+    ctx.rotate(angle);
+    
+    // Draw half-arrow (only on one side of the line)
+    ctx.beginPath();
+    ctx.moveTo(0, 0);  // Start at midpoint of the line
+    ctx.lineTo(-arrowSize, arrowSize/2);  // Go back and down
+    ctx.lineTo(-arrowSize, -arrowSize/2); // Go back and up
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.restore();
+  }
 }
 
 
@@ -641,9 +663,35 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   sensorsBtn.addEventListener("click", async () => {
-    if (!ws) return
-    console.log("start monitor sensor")
-    ws.send(JSON.stringify({ action: "monitor_sensor" }))
+    if (!ws) return;
+  
+    // Toggle monitoring state
+    const isCurrentlyMonitoring = sensorsBtn.getAttribute("data-monitoring") === "true";
+    const newMonitoringState = !isCurrentlyMonitoring;
+  
+    // Update button appearance
+    if (newMonitoringState) {
+      sensorsBtn.classList.remove("btn-success");
+      sensorsBtn.classList.add("btn-danger");
+      sensorsBtn.textContent = "Stop Monitoring";
+    } else {
+      sensorsBtn.classList.remove("btn-danger");
+      sensorsBtn.classList.add("btn-success");
+      sensorsBtn.textContent = "Start Monitoring";
+    }
+  
+    // Update data attribute
+    sensorsBtn.setAttribute("data-monitoring", newMonitoringState);
+  
+    // Send command to server
+    ws.send(JSON.stringify({ action: "monitor_sensor" }));
+  
+    // If starting monitoring, clear previous values
+    if (newMonitoringState) {
+      document.getElementById("left-sensor-value").textContent = "--";
+      document.getElementById("right-sensor-value").textContent = "--";
+      document.getElementById("back-sensor-value").textContent = "--";
+    }
   });
 
   applyThresholdBtn.addEventListener("click", async () => {
@@ -811,6 +859,26 @@ function loadSpeed() {
 function setSpeed(speed, turnSpeed) {
   document.querySelector("#speed-value").value = speed
   document.querySelector("#turn-speed-value").value = turnSpeed
+}
+
+// Add this function to update sensor value display with color coding
+function updateSensorValueDisplay(elementId, value, threshold) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+  
+  // Update the text content
+  element.textContent = value;
+  
+  // Apply color based on threshold comparison
+  if (value < threshold) {
+    // Below threshold (on line) - display in red
+    element.classList.remove("text-success");
+    element.classList.add("text-danger");
+  } else {
+    // Above threshold (off line) - display in green
+    element.classList.remove("text-danger");
+    element.classList.add("text-success");
+  }
 }
 
 // Example usage of the new command

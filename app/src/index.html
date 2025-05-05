@@ -263,22 +263,21 @@
           <div class="card w-100">
             <div class="card-header d-flex justify-content-between align-items-center">
               <h4 class="mb-0">Sensor Monitor</h4>
-              <!-- change to button danger and stop monitoring -->
-              <button id="monitor-btn" class="btn btn-success" style="width: 150px;">Start Monitoring</button>
+              <button id="monitor-btn" class="btn btn-success" style="width: 150px;" data-monitoring="false">Start Monitoring</button>
             </div>
             <div class="card-body">
               <div class="d-flex flex-column gap-2">
                 <div class="d-flex align-items-center gap-3">
                   <label class="mb-0" style="width: 120px;">Left Value:</label>
-                  <span id="left-sensor-value" class="form-control-plaintext" style="width: 100px;">--</span>
+                  <span id="left-sensor-value" class="form-control-plaintext fw-bold" style="width: 100px;">--</span>
                 </div>
                 <div class="d-flex align-items-center gap-3">
                   <label class="mb-0" style="width: 120px;">Right Value:</label>
-                  <span id="right-sensor-value" class="form-control-plaintext" style="width: 100px;">--</span>
+                  <span id="right-sensor-value" class="form-control-plaintext fw-bold" style="width: 100px;">--</span>
                 </div>
                 <div class="d-flex align-items-center gap-3">
                   <label class="mb-0" style="width: 120px;">Back Value:</label>
-                  <span id="back-sensor-value" class="form-control-plaintext" style="width: 100px;">--</span>
+                  <span id="back-sensor-value" class="form-control-plaintext fw-bold" style="width: 100px;">--</span>
                 </div>
               </div>
             </div>

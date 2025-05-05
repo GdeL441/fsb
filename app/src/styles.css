@@ -133,3 +133,19 @@
 .spacer {
   width: 60px;
 }
+
+/* Sensor value styling */
+#left-sensor-value,
+#right-sensor-value,
+#back-sensor-value {
+  transition: color 0.3s ease;
+  font-weight: bold;
+}
+
+.text-success {
+  color: #28a745 !important;
+}
+
+.text-danger {
+  color: #dc3545 !important;
+}

@@ -74,6 +74,9 @@ current_step = 0
 # This is required because when the front sensors detect the intersection,
 # the car should keep driving until the inteserction is reached
 intersection_detected = False
+intersection_detection_time = None
+MIN_INTERSECTION_TIME = 0.05  # Minimum time both sensors must be on line
+INTERSECTION_TIMEOUT = 2.0  # Maximum time to wait for back sensor after detecting intersection
 
 # WiFi configuration
 SSID = "Fast Shitbox"
@@ -114,6 +117,11 @@ turn_last_error = 0
 
 # Target heading for turning PID
 target_heading = 0  # 0 = straight, positive = right, negative = left
+
+# Turning control variables
+MIN_TURN_TIME = 0.5  # Minimum turning time before checking sensors (seconds)
+MAX_TURN_TIME = 2.0  # Maximum turning time before forcing completion (seconds)
+TURN_SLOWDOWN_FACTOR = 0.7  # Factor to slow down turning speed when approaching target
 
 
 
@@ -253,7 +261,7 @@ print("Server started, open for websocket connection")
 # Reset the cars state, this will be triggered either by the frontend or
 # when the car ran into a wall
 def reset_state():
-    global started, current_step, error_sum, last_error, intersection_detected, robot_pos, robot_heading, green_towers, servo_active_time
+    global started, current_step, error_sum, last_error, intersection_detected, intersection_detection_time, robot_pos, robot_heading, green_towers, servo_active_time
     print("Reset state")
     started = False
     stop_motors()
@@ -261,10 +269,11 @@ def reset_state():
     error_sum = 0
     last_error = 0
     intersection_detected = False
+    intersection_detection_time = None
     robot_pos = {"x": 6, "y": 0}
     robot_heading = "N"  # "N" "E" "S" "W"
     green_towers = []
-    servo_active_time = None # Ook nog servos naar 0° zetten of gebeurt dit direct?
+    servo_active_time = None
     servo.angle = 175
 
 
@@ -272,6 +281,8 @@ def reset_state():
 # Defaults to TURN_SPEED
 def turn_left(turning_speed=TURN_SPEED):
     print(f"Turn left, speed={turning_speed}")
+    # Ensure speed is within valid range
+    turning_speed = max(10, min(100, turning_speed))
     Motor_Left.run(-turning_speed)
     Motor_Right.run(turning_speed)
 
@@ -280,6 +291,8 @@ def turn_left(turning_speed=TURN_SPEED):
 # Defaults to TURN_SPEED
 def turn_right(turning_speed=TURN_SPEED):
     print(f"Turn right, speed={turning_speed}")
+    # Ensure speed is within valid range
+    turning_speed = max(10, min(100, turning_speed))
     Motor_Right.run(-turning_speed)
     Motor_Left.run(turning_speed)
 
@@ -458,69 +471,118 @@ while True:
 
         if steps[current_step] == "FORWARD":
             # If the current step is moving forward, just follow the line until the next intersections
-            if L_overline.status() and R_overline.status():
-                # Both sensors on line -> intersection detected
-                print("Front of car over intersection")
-                intersection_detected = True
-                #time_since_next_step = time.monotonic() # Ik heb deze regel toegevoegd. Misschien helpt dit het intersection detecten???
-
-            if (B_overline.status() and intersection_detected == True
-                    and time.monotonic() - time_since_next_step > 0.9
-                ):
-                # A intersections was detected and now we are at the intersection -> move to next step
-                print("Car at intersection, go to next step")
-
-                # Only stop the motors if the path is finished or the next step is not FORWARD.
-                possible_next_step = get_next_step()
-                if possible_next_step == None or possible_next_step != "FORWARD":
+            
+            # Check for intersection with front sensors
+            front_sensors_on_line = L_overline.status() and R_overline.status()
+            
+            # Improved intersection detection with debouncing
+            if front_sensors_on_line and not intersection_detected:
+                if intersection_detection_time is None:
+                    # Start timing how long both sensors are on the line
+                    intersection_detection_time = time.monotonic()
+                elif time.monotonic() - intersection_detection_time > MIN_INTERSECTION_TIME:
+                    # Both sensors have been on the line for minimum time - confirm intersection
+                    print("Front of car over intersection")
+                    intersection_detected = True
+            elif not front_sensors_on_line:
+                # Reset the timer if sensors are no longer on the line
+                intersection_detection_time = None
+            
+            # Check if we need to move to the next step
+            if intersection_detected:
+                # Check for timeout (missed the back sensor)
+                if time.monotonic() - intersection_detection_time > INTERSECTION_TIMEOUT:
+                    print("Intersection timeout - proceeding to next step")
+                    intersection_detected = False
+                    intersection_detection_time = None
                     stop_motors()
-
-                intersection_detcted = False
-                next_step()
+                    next_step()
+                # Check if back sensor detects the intersection
+                elif B_overline.status() and time.monotonic() - time_since_next_step > 0.5:
+                    print("Car at intersection, go to next step")
+                    
+                    # Only stop the motors if the path is finished or the next step is not FORWARD
+                    possible_next_step = get_next_step()
+                    if possible_next_step is None or possible_next_step != "FORWARD":
+                        stop_motors()
+                    
+                    intersection_detected = False
+                    intersection_detection_time = None
+                    next_step()
             else:
-                # print("Follow line with PID-controller")
-                error = (
-                    L_overline.value() - R_overline.value()
-                ) / 65535.0  # Normalize between -1 and 1
+                # Line following with PID controller
+                error = (L_overline.value() - R_overline.value()) / 65535.0  # Normalize between -1 and 1
                 error_sum += error  # Integral term
                 error_derivative = error - last_error  # Derivative term
                 last_error = error  # Save error for next loop
-
+                
                 # Anti-windup: Limit integral term
                 MAX_INTEGRAL = 1.0
                 error_sum = max(-MAX_INTEGRAL, min(MAX_INTEGRAL, error_sum))
-
+                
                 # Compute correction
                 correction = (Kp * error) + (Ki * error_sum) + (Kd * error_derivative)
-
+                
                 # Adjust motor speeds
                 left_speed = int(BASE_SPEED + (correction * BASE_SPEED))
                 right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
-                # print(f"Left speed {left_speed} Right speed {right_speed}")
+                
                 Motor_Left.run(left_speed)
                 Motor_Right.run(right_speed)
 
         else:
             # The robot is currently turning, wait until back on line before moving to next step
-            # To make sure the car actually turned 90 degrees, a minimum turning time is introduced (0.5s), this prevents the car
-            # from instantly going to the next step on turns(before actually starting the turn)
+            current_time = time.monotonic()
+            turn_elapsed_time = current_time - time_since_next_step
+            
             if steps[current_step] == "RIGHT":
-                # If the robot is turning right, it should stop turning once the right(TODO: left?) sensor hits the black line
-                turn_right()
-                if (
-                    R_overline.status()
-                    and time.monotonic() - time_since_next_step > 0.9
-                ):
+                # Calculate turning speed - slow down as we approach the target
+                if turn_elapsed_time > MIN_TURN_TIME * 0.8:
+                    # Start slowing down near the end of minimum turn time
+                    current_turn_speed = int(TURN_SPEED * TURN_SLOWDOWN_FACTOR)
+                else:
+                    current_turn_speed = TURN_SPEED
+                
+                # Execute the turn
+                turn_right(current_turn_speed)
+                
+                # Check if turn is complete
+                if turn_elapsed_time > MAX_TURN_TIME:
+                    # Force completion if maximum time exceeded
+                    print("Turn timeout - completing turn")
                     stop_motors()
                     next_step()
-            elif steps[current_step] == "LEFT":
-                # If the robot is turning left, it should stop turning once the left(TODO: right?) sensor hits the black line
-                turn_left()
-                if (
-                    L_overline.status()
-                    and time.monotonic() - time_since_next_step > 0.9
-                ):
+                elif turn_elapsed_time > MIN_TURN_TIME and R_overline.status():
+                    # Sensor detected line after minimum turn time
+                    print("Right turn complete - sensor on line")
                     stop_motors()
+                    # Small delay to stabilize before moving on
+                    time.sleep(0.1)
+                    next_step()
+                    
+            elif steps[current_step] == "LEFT":
+                # Calculate turning speed - slow down as we approach the target
+                if turn_elapsed_time > MIN_TURN_TIME * 0.8:
+                    # Start slowing down near the end of minimum turn time
+                    current_turn_speed = int(TURN_SPEED * TURN_SLOWDOWN_FACTOR)
+                else:
+                    current_turn_speed = TURN_SPEED
+                
+                # Execute the turn
+                turn_left(current_turn_speed)
+                
+                # Check if turn is complete
+                if turn_elapsed_time > MAX_TURN_TIME:
+                    # Force completion if maximum time exceeded
+                    print("Turn timeout - completing turn")
+                    stop_motors()
+                    next_step()
+                elif turn_elapsed_time > MIN_TURN_TIME and L_overline.status():
+                    # Sensor detected line after minimum turn time
+                    print("Left turn complete - sensor on line")
+                    stop_motors()
+                    # Small delay to stabilize before moving on
+                    time.sleep(0.1)
                     next_step()
     else:
         if MANUAL_CONTROL:
