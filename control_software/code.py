@@ -97,8 +97,8 @@ TURN_Ki = 0.05  # Integral gain for turning
 TURN_Kd = 0.5  # Derivative gain for turning
 
 # Base Speed (100% = max = 65535)
-BASE_SPEED = 40  # %
-TURN_SPEED = 40  # %
+BASE_SPEED = 30  # %
+TURN_SPEED = 30  # %
 
 # Integral & Derivative Terms for line following
 error_sum = 0
@@ -182,10 +182,10 @@ def poll_websocket():
                         R_overline.set_threshold(data["thresholds"]["R"])
                         B_overline.set_threshold(data["thresholds"]["B"])
 
-                    if data.get("speed") != None:
+                    if data["speed"] != None:
                         speed = max(min(100, data["speed"]), 0)
                         BASE_SPEED = speed
-                    if data.get("turnSpeed") != None:
+                    if data["turnSpeed"] != None:
                         turn_speed = max(min(100, data["turnSpeed"]), 0)
                         TURN_SPEED = turn_speed
 
@@ -438,7 +438,9 @@ while True:
                 print("Front of car over intersection")
                 intersection_detected = True
 
-            if B_overline.status() and intersection_detected == True:
+            if (B_overline.status() and intersection_detected == True
+                    and time.monotonic() - time_since_next_step > 0.9
+                ):
                 # A intersections was detected and now we are at the intersection -> move to next step
                 print("Car at intersection, go to next step")
 

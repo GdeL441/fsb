@@ -163,7 +163,7 @@ async function connectWs(url) {
       step.textContent = `${data.step}`
     } else if (data.action == "position_updated") {
       let newPos = JSON.stringify(data.position)
-      let previousPos = JSON.parse(position.textContent)
+      let previousPos = position.textContent
       if (previousPos != newPos) {
         let greenDot = dots.find((dot) => dot.x == data.position.x && dot.y == data.position.y && dot.color == "green")
         console.log("green", dots, data, score, greenDot)
