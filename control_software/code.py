@@ -374,7 +374,8 @@ def get_next_step():
     return steps[current_step + 1]
 
 
-def maybe_pickup(): 
+def maybe_pickup():
+    global robot_pos, robot_heading 
     current_pos = robot_pos.copy()
     current_heading = robot_heading
 
