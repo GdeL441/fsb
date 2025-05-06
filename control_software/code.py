@@ -498,8 +498,6 @@ while True:
             if L_overline.status() and R_overline.status():
                 # Both sensors on line -> intersection detected
                 intersection_detected = True
-                #time_since_next_step = time.monotonic() # Ik heb deze regel toegevoegd. Misschien helpt dit het intersection detecten???
-
             if (B_overline.status() and intersection_detected == True
                     and time.monotonic() - time_since_next_step > 0.9
                 ):
@@ -509,7 +507,7 @@ while True:
                 if possible_next_step == None or possible_next_step != "FORWARD":
                     stop_motors()
 
-                intersection_detcted = False
+                intersection_detected = False
                 next_step()
             else:
                 # print("Follow line with PID-controller")
@@ -531,8 +529,14 @@ while True:
                 left_speed = int(BASE_SPEED + (correction * BASE_SPEED))
                 right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
                 # print(f"Left speed {left_speed} Right speed {right_speed}")
-                Motor_Left.run(left_speed)
-                Motor_Right.run(right_speed)
+                if intersection_detected:
+                   Motor_Left.run(left_speed * 0.8)
+                   Motor_Right.run(right_speed * 0.8) 
+                else:
+                    Motor_Left.run(left_speed)
+                    Motor_Right.run(right_speed)
+                    
+
 
         else:
             # The robot is currently turning, wait until back on line before moving to next step
