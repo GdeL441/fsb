@@ -335,9 +335,21 @@ def turn_left():
     # Calculate time since turn started
     turn_elapsed_time = time.monotonic() - time_since_next_step
     
-    # Gradual speed ramp-up for smoother start
-    ramp_factor = min(1.0, turn_elapsed_time * 2)  # Full speed after 0.5 seconds
-    turn_speed = TURN_SPEED * ramp_factor
+    # Apply speed profile:
+    # - Full speed until 400ms
+    # - Linear ramp down from 400ms to 600ms (100% to 70%)
+    # - 70% speed after 600ms
+    if turn_elapsed_time < 0.4:
+        # Full speed for first 400ms
+        turn_speed = TURN_SPEED
+    elif turn_elapsed_time < 0.6:
+        # Linear ramp down between 400ms and 600ms
+        ramp_progress = (turn_elapsed_time - 0.4) / 0.2  # 0.0 to 1.0 over 200ms
+        ramp_factor = 1.0 - (0.3 * ramp_progress)  # 1.0 to 0.7 over 200ms
+        turn_speed = TURN_SPEED * ramp_factor
+    else:
+        # 70% speed after 600ms
+        turn_speed = TURN_SPEED * 0.7
     
     # Apply turn speeds
     Motor_Left.run(-turn_speed)
@@ -356,9 +368,21 @@ def turn_right():
     # Calculate time since turn started
     turn_elapsed_time = time.monotonic() - time_since_next_step
     
-    # Gradual speed ramp-up for smoother start
-    ramp_factor = min(1.0, turn_elapsed_time * 2)  # Full speed after 0.5 seconds
-    turn_speed = TURN_SPEED * ramp_factor
+    # Apply speed profile:
+    # - Full speed until 400ms
+    # - Linear ramp down from 400ms to 600ms (100% to 70%)
+    # - 70% speed after 600ms
+    if turn_elapsed_time < 0.4:
+        # Full speed for first 400ms
+        turn_speed = TURN_SPEED
+    elif turn_elapsed_time < 0.6:
+        # Linear ramp down between 400ms and 600ms
+        ramp_progress = (turn_elapsed_time - 0.4) / 0.2  # 0.0 to 1.0 over 200ms
+        ramp_factor = 1.0 - (0.3 * ramp_progress)  # 1.0 to 0.7 over 200ms
+        turn_speed = TURN_SPEED * ramp_factor
+    else:
+        # 70% speed after 600ms
+        turn_speed = TURN_SPEED * 0.7
     
     # Apply turn speeds
     Motor_Left.run(turn_speed)
