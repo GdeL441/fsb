@@ -106,7 +106,7 @@ TURN_SPEED = 30  # %
 
 # Enhanced Intersction Detection
 intersection_samples = 0
-INTERSECTION_SAMPLES_NEEDED = 3  # Require multiple detections
+INTERSECTION_SAMPLES_NEEDED = 1  # Require multiple detections
 
 
 
@@ -533,14 +533,14 @@ while True:
     if started == True:
         
         if collision.detect():
-            print("Collision Detected! Resetting...")
-            status_led.collision()
+            print("Collision Detected! Resetting...")      
             reset_state()
-
+            status_led.collision()
+            continue
         if steps[current_step] == "FORWARD":
             # If the current step is moving forward, just follow the line until the next intersections
             # Enhanced Intersection detection
-            if L_overline.status() or R_overline.status():
+            if L_overline.status() and R_overline.status():
                 intersection_samples += 1
                 if intersection_samples >= INTERSECTION_SAMPLES_NEEDED:
                     intersection_detected = True
