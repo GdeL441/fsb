@@ -231,6 +231,12 @@ def poll_websocket():
                         
 
                     started = True
+                    if len(steps) != 0:
+                        if steps[0] == "LEFT":
+                            turn_left()
+                        elif steps[0] == "RIGHT":
+                            turn_right()
+
                 elif data["action"] == "stop":
                     started = False
                 elif data["action"] == "reset":
