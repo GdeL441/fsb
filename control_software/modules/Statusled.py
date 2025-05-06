@@ -4,7 +4,7 @@ import time
 
 
 class Statusled:
-    def __init__(self, pin, brightness=0.3):
+    def __init__(self, pin, brightness=0.6):
         self.NUM_PIXELS = 35
         self.brightness = brightness
         self.pixels = neopixel.NeoPixel(pin, self.NUM_PIXELS, brightness=brightness, auto_write=False)
