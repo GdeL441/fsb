@@ -621,7 +621,7 @@ while True:
                 maybe_pickup()
 
 
-            if (B_overline.status() and intersection_detected and 
+            if (((B_overline.status() and intersection_detected) or B_overline.status()) and 
                     time.monotonic() - time_since_next_step > get_intersection_delay()):
                 # A intersection was detected and now we are at the intersection -> move to next step
                 # Only stop the motors if the path is finished or the next step is not FORWARD.
