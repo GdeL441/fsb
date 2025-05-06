@@ -333,7 +333,7 @@ def stop_motors():
 
 # whenever the car advances on the grid, update its position and heading for monitoring
 # on the frontend
-def update_pos_and_heading():
+def update_pos_and_heading(send=True):
     global robot_pos, robot_heading
 
     if steps[current_step] == "FORWARD":
@@ -355,15 +355,16 @@ def update_pos_and_heading():
         # Turn 90 degrees to the left (counterclockwise)
         robot_heading = DIRECTIONS[(DIRECTIONS.index(robot_heading) - 1) % 4]
 
-    data = {
-        "action": "position_updated",
-        "position": robot_pos,
-        "heading": robot_heading,
-    }
-    print("update pos and heading after", robot_pos, robot_heading, steps[current_step])
-    
-    # Position updates are important
-    send_websocket_message(data, important=True)
+    if send: 
+        data = {
+            "action": "position_updated",
+            "position": robot_pos,
+            "heading": robot_heading,
+        }
+        print("update pos and heading after", robot_pos, robot_heading, steps[current_step])
+        
+        # Position updates are important
+        send_websocket_message(data, important=True)
 
 # Return the next step in the path or None
 def get_next_step():
@@ -372,6 +373,23 @@ def get_next_step():
 
     return steps[current_step + 1]
 
+
+def maybe_pickup(): 
+    current_pos = robot_pos.copy()
+    current_heading = robot_heading
+
+    update_pos_and_heading(False)
+
+    tower = find(
+        green_towers, lambda t: t["x"] == robot_pos["x"] and t["y"] == robot_pos["y"]
+    )
+    if tower != None:
+        print("Pick up item with servo arm")
+        pickup()
+        green_towers.remove(tower)
+
+    robot_pos = current_pos
+    robot_heading = current_heading
 
 # The car should advance to the next stap defined in the global path
 def next_step():
@@ -382,13 +400,13 @@ def next_step():
 
     # If there is a green tower on the current position, use the arm to pickup the tower.
     # Maybe we change this to a pickup command from the backtracking algorithm?
-    tower = find(
-        green_towers, lambda t: t["x"] == robot_pos["x"] and t["y"] == robot_pos["y"]
-    )
-    if tower != None:
-        print("Pick up item with servo arm")
-        pickup()
-        green_towers.remove(tower)
+    # tower = find(
+    #     green_towers, lambda t: t["x"] == robot_pos["x"] and t["y"] == robot_pos["y"]
+    # )
+    # if tower != None:
+    #     print("Pick up item with servo arm")
+    #     pickup()
+    #     green_towers.remove(tower)
 
     current_step += 1
     time_since_next_step = time.monotonic()
@@ -490,6 +508,9 @@ def get_intersection_delay():
     # Base delay + speed factor
     return 0.5 + (1.0 - (BASE_SPEED / 100.0)) * 0.5  # Can be adjusted (testing required)
 
+def get_turning_delay():
+     # Base delay + speed factor
+     return 0.5 + (1.0 - (TURN_SPEED / 100.0)) * 0.5  # Can be adjusted (testing required)
 
 # Main loop
 while True:
@@ -516,6 +537,9 @@ while True:
                 intersection_samples += 1
                 if intersection_samples >= INTERSECTION_SAMPLES_NEEDED:
                     intersection_detected = True
+
+                    maybe_pickup()
+
                     intersection_samples = 0
             else:
                 intersection_samples = 0
@@ -565,19 +589,17 @@ while True:
             # from instantly going to the next step on turns(before actually starting the turn)
             if steps[current_step] == "RIGHT":
                 # If the robot is turning right, it should stop turning once the right(TODO: left?) sensor hits the black line
-                # turn_right()
                 if (
                     ( R_overline.status() or L_overline.status() )
-                    and time.monotonic() - time_since_next_step > 0.9
+                    and time.monotonic() - time_since_next_step > get_turning_delay()
                 ):
                     stop_motors()
                     next_step()
             elif steps[current_step] == "LEFT":
                 # If the robot is turning left, it should stop turning once the left(TODO: right?) sensor hits the black line
-                # turn_left()
                 if (
                     ( L_overline.status() or R_overline.status() )
-                    and time.monotonic() - time_since_next_step > 0.9
+                    and time.monotonic() - time_since_next_step > get_turning_delay()
                 ):
                     stop_motors()
                     next_step()
