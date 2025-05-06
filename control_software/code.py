@@ -326,15 +326,46 @@ def reset_state():
 # Turn the robot to the left with a given speed, used on intersection.
 # Defaults to turn_speed
 def turn_left():
-    Motor_Left.run(-TURN_SPEED)
-    Motor_Right.run(TURN_SPEED)
+    global time_since_next_step, turn_error_sum, turn_last_error
+    
+    # Reset PID variables for turning
+    turn_error_sum = 0
+    turn_last_error = 0
+    
+    # Calculate time since turn started
+    turn_elapsed_time = time.monotonic() - time_since_next_step
+    
+    # Gradual speed ramp-up for smoother start
+    ramp_factor = min(1.0, turn_elapsed_time * 2)  # Full speed after 0.5 seconds
+    turn_speed = TURN_SPEED * ramp_factor
+    
+    # Apply turn speeds
+    Motor_Left.run(-turn_speed)
+    Motor_Right.run(turn_speed)
 
 
 # Turn the robot to the right with a given speed, used on intersection.
 # Defaults to turn_speed
 def turn_right():
-    Motor_Right.run(-TURN_SPEED)
-    Motor_Left.run(TURN_SPEED)
+    global time_since_next_step, turn_error_sum, turn_last_error
+    
+    # Reset PID variables for turning
+    turn_error_sum = 0
+    turn_last_error = 0
+    
+    # Calculate time since turn started
+    turn_elapsed_time = time.monotonic() - time_since_next_step
+    
+    # Gradual speed ramp-up for smoother start
+    ramp_factor = min(1.0, turn_elapsed_time * 2)  # Full speed after 0.5 seconds
+    turn_speed = TURN_SPEED * ramp_factor
+    
+    # Apply turn speeds
+    Motor_Left.run(turn_speed)
+    Motor_Right.run(-turn_speed)
+
+
+# Maybe ramp down instead of ramp up???
 
 
 def stop_motors():
@@ -516,8 +547,18 @@ def next_step():
 # code doesn't block the car from making progres
 def pickup():
     global servo_active_time
+    
+    # Move servo to pickup position
     servo.angle = ARM_UP
     servo_active_time = time.monotonic()
+    
+    # Send pickup notification to frontend
+    data = {
+        "action": "tower_collected",
+        "position": robot_pos,
+        "remaining_towers": len(green_towers)
+    }
+    send_websocket_message(data, important=True)
 
 
 # Convert duty_cycle (0-65535) to % speeds (0-100)
@@ -560,8 +601,18 @@ def find(lst, fn):
     return None
 
 
+# Improved sensor calibration with multiple samples
 def calibrate_sensor(sensor):
-    white_value = sensor.value()
+    # Take multiple readings for more stable calibration
+    samples = []
+    for _ in range(5):  # Take 5 samples
+        samples.append(sensor.value())
+        time.sleep(0.01)  # Short delay between samples
+    
+    # Use median value to avoid outliers
+    samples.sort()
+    white_value = samples[2]  # Middle value (median)
+    
     threshold = white_value * calibration_threshold
     sensor.set_threshold(threshold)
     return threshold
@@ -580,18 +631,49 @@ def calibrate_all(send = True):
             "thresholds": {
                 "L": l_threshold,
                 "R": r_threshold,
-                "B": b_threshold
+                "B": b_threshold,
+                "calibration_threshold": calibration_threshold
             }
         }
         send_websocket_message(data, important=True)
 
 def get_intersection_delay():
-    # Base delay + speed factor
-    return 0.5 + (1.0 - (BASE_SPEED / 100.0)) * 0.5  # Can be adjusted (testing required)
+    """Calculate appropriate delay for intersection detection based on speed"""
+    # Base delay + speed factor + adjustment for battery level
+    base_delay = 0.3  # Minimum delay
+    speed_factor = (1.0 - (BASE_SPEED / 100.0)) * 0.4  # Speed adjustment (0-0.4s)
+    
+    # Shorter delay at higher speeds, longer at lower speeds
+    return base_delay + speed_factor
 
 def get_turning_delay():
-     # Base delay + speed factor
-     return 0.5 + (1.0 - (TURN_SPEED / 100.0)) * 0.5  # Can be adjusted (testing required)
+    """Calculate appropriate delay for turning based on speed"""
+    # Base delay + speed factor
+    base_delay = 0.3  # Minimum delay
+    speed_factor = (1.0 - (TURN_SPEED / 100.0)) * 0.4  # Speed adjustment (0-0.4s)
+    
+    # Shorter delay at higher speeds, longer at lower speeds
+    return base_delay + speed_factor
+
+# Enhanced intersection detection with debouncing
+def check_for_intersection():
+    global intersection_detected, intersection_detection_time
+    
+    # Both front sensors on line indicates potential intersection
+    front_sensors_on_line = L_overline.status() and R_overline.status()
+    
+    if front_sensors_on_line and not intersection_detected:
+        if intersection_detection_time is None:
+            # Start timing how long both sensors are on the line
+            intersection_detection_time = time.monotonic()
+        elif time.monotonic() - intersection_detection_time > 0.05:  # 50ms debounce
+            # Confirmed intersection after debounce period
+            print("Front of car over intersection")
+            intersection_detected = True
+            maybe_pickup()  # Check if we need to pick up a tower
+    elif not front_sensors_on_line:
+        # Reset detection if sensors no longer detect line
+        intersection_detection_time = None
 
 # Main loop
 while True:
@@ -617,10 +699,7 @@ while True:
         if steps[current_step] == "FORWARD":
             # If the current step is moving forward, just follow the line until the next intersections
             # Enhanced Intersection detection
-            if L_overline.status() and R_overline.status():
-                intersection_detected = True
-                maybe_pickup()
-
+            check_for_intersection()
 
             if (((B_overline.status() and intersection_detected) or B_overline.status()) and 
                     time.monotonic() - time_since_next_step > get_intersection_delay()):
