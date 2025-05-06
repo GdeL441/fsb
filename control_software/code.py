@@ -104,6 +104,12 @@ TURN_Kd = 0.5  # Derivative gain for turning
 BASE_SPEED = 30  # %
 TURN_SPEED = 30  # %
 
+# Enhanced Intersction Detection
+intersection_samples = 0
+INTERSECTION_SAMPLES_NEEDED = 3  # Require multiple detections
+
+
+
 # Integral & Derivative Terms for line following
 error_sum = 0
 last_error = 0
@@ -480,6 +486,11 @@ def calibrate_all(threshold = 0.8, send = True):
         }
         send_websocket_message(data, important=True)
 
+def get_intersection_delay():
+    # Base delay + speed factor
+    return 0.5 + (1.0 - (BASE_SPEED / 100.0)) * 0.5  # Can be adjusted (testing required)
+
+
 # Main loop
 while True:
     
@@ -500,12 +511,17 @@ while True:
 
         if steps[current_step] == "FORWARD":
             # If the current step is moving forward, just follow the line until the next intersections
-            if L_overline.status() and R_overline.status():
-                # Both sensors on line -> intersection detected
-                intersection_detected = True
-            if (B_overline.status() and intersection_detected == True
-                    and time.monotonic() - time_since_next_step > 0.9
-                ):
+            # Enhanced Intersection detection
+            if L_overline.status() or R_overline.status():
+                intersection_samples += 1
+                if intersection_samples >= INTERSECTION_SAMPLES_NEEDED:
+                    intersection_detected = True
+                    intersection_samples = 0
+            else:
+                intersection_samples = 0
+
+            if (B_overline.status() and intersection_detected and 
+                    time.monotonic() - time_since_next_step > get_intersection_delay()):
                 # A intersections was detected and now we are at the intersection -> move to next step
                 # Only stop the motors if the path is finished or the next step is not FORWARD.
                 possible_next_step = get_next_step()
@@ -535,8 +551,8 @@ while True:
                 right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
                 # print(f"Left speed {left_speed} Right speed {right_speed}")
                 if intersection_detected:
-                   Motor_Left.run(left_speed * 0.8)
-                   Motor_Right.run(right_speed * 0.8) 
+                   Motor_Left.run(left_speed * 0.7)
+                   Motor_Right.run(right_speed * 0.7) 
                 else:
                     Motor_Left.run(left_speed)
                     Motor_Right.run(right_speed)
