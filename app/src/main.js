@@ -758,19 +758,22 @@ window.addEventListener("DOMContentLoaded", () => {
 
   manualBtn.addEventListener("click", async () => {
     if (!ws) return
-    manual_control = !manual_control
-
+    
     if (manualBtn.classList.contains("btn-primary")) {
+      // Changing to manual control mode
       manualBtn.innerText = "Stop Takeover"
       manualBtn.classList.remove("btn-primary");
       manualBtn.classList.add("btn-danger");
+      ws.send(JSON.stringify({ action: "enable_manual_control" }))
     } else {
+      // Disabling manual control mode
       manualBtn.innerText = "Takeover"
       manualBtn.classList.add("btn-primary");
       manualBtn.classList.remove("btn-danger");
+      ws.send(JSON.stringify({ action: "disable_manual_control" }))
     }
-
-    ws.send(JSON.stringify({ action: "manual_control" }))
+    
+    manual_control = !manual_control
   });
 
   calibrateBtn.addEventListener("click", async () => {

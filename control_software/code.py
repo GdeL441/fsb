@@ -259,9 +259,12 @@ def poll_websocket():
                     turn_speed = max(min(100, data["turnSpeed"]), 0)
                     TURN_SPEED = turn_speed
                     BASE_SPEED = speed
-                elif data["action"] == "manual_control":
+                elif data["action"] == "disable_manual_control":
                     started = False
-                    MANUAL_CONTROL = not MANUAL_CONTROL
+                    MANUAL_CONTROL = False
+                elif data["action"] == "enable_manual_control":
+                    started = False
+                    MANUAL_CONTROL = True
                 elif data["action"] == "manual_control_speeds":
                     if not MANUAL_CONTROL:
                         return
