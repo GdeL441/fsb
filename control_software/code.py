@@ -396,6 +396,11 @@ def next_step():
         }
         send_websocket_message(data, important=True)
         return
+    else: 
+        if steps[current_step] == "LEFT":
+            turn_left()
+        elif steps[current_step] == "RIGHT":
+            turn_right()
 
     data = {"action": "next_step", "step": steps[current_step]}
     send_websocket_message(data, important=True)
@@ -544,7 +549,7 @@ while True:
             # from instantly going to the next step on turns(before actually starting the turn)
             if steps[current_step] == "RIGHT":
                 # If the robot is turning right, it should stop turning once the right(TODO: left?) sensor hits the black line
-                turn_right()
+                # turn_right()
                 if (
                     ( R_overline.status() or L_overline.status() )
                     and time.monotonic() - time_since_next_step > 0.9
@@ -553,7 +558,7 @@ while True:
                     next_step()
             elif steps[current_step] == "LEFT":
                 # If the robot is turning left, it should stop turning once the left(TODO: right?) sensor hits the black line
-                turn_left()
+                # turn_left()
                 if (
                     ( L_overline.status() or R_overline.status() )
                     and time.monotonic() - time_since_next_step > 0.9
