@@ -878,11 +878,11 @@ function loadThresholds() {
   }
 }
 
-function setThresholds(L, R, B, calibration_threshold = 0.8) {
+function setThresholds(L, R, B, calibration_threshold) {
   document.querySelector("#left-sensor-threshold").value = L;
   document.querySelector("#right-sensor-threshold").value = R;
   document.querySelector("#back-sensor-threshold").value = B;
-  document.querySelector("#calibration-threshold").value = calibration_threshold || 0.8;
+  document.querySelector("#calibration-threshold").value = calibration_threshold;
 }
 
 function loadPID() {
