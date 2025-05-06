@@ -34,10 +34,14 @@ servo = servo.Servo(
 )
 # Timestamp at which servo was activated, this makes it possible to make the pickup non-blocking
 servo_active_time = None
+timeout_time = None
 
 # Is the timer currently running, should the car continue making progres on the steps
 started = False
 
+# Add servo constants:
+ARM_DOWN = 172
+ARM_UP = 10
 
 # Keep track if first calibration has been done.
 calibrated = False
@@ -274,12 +278,12 @@ def poll_websocket():
                     if not MANUAL_CONTROL:
                         return
 
-                    servo.angle = 0
+                    servo.angle = ARM_UP
                 elif data["action"] == "arm_down":
                     if not MANUAL_CONTROL:
                         return
 
-                    servo.angle = 175
+                    servo.angle = ARM_DOWN
                 elif data["action"] == "calibrate":
                     print("Calibrating sensors...")
                     # Use a slightly higher threshold for better line detection
@@ -318,7 +322,7 @@ def reset_state():
     robot_heading = "N"  # "N" "E" "S" "W"
     green_towers = []
     servo_active_time = None # Ook nog servos naar 0° zetten of gebeurt dit direct?
-    servo.angle = 175
+    servo.angle = ARM_DOWN
 
 
 # Turn the robot to the left with a given speed, used on intersection.
@@ -402,23 +406,73 @@ def maybe_pickup():
     robot_heading = current_heading
 
 def should_pickup_next_step():
-    should_pickup = False
-    global robot_pos, robot_heading 
+    global robot_pos, robot_heading, current_step, steps, green_towers
+    
+    # Save current state
     current_pos = robot_pos.copy()
     current_heading = robot_heading
-
-    update_pos_and_heading(False)
-
-    tower = find(
-        green_towers, lambda t: t["x"] == robot_pos["x"] and t["y"] == robot_pos["y"]
-    )
-    if tower != None:
-        should_pickup = True
-
-    robot_pos = current_pos
-    robot_heading = current_heading
-
-    return should_pickup
+    
+    # Check if we have a next step and it's FORWARD
+    if current_step + 1 >= len(steps) or steps[current_step + 1] != "FORWARD":
+        # Restore state and return False if next step isn't FORWARD
+        return False
+    
+    # Calculate position after completing the CURRENT step
+    if steps[current_step] == "FORWARD":
+        # Move forward based on current heading
+        if robot_heading == "N":
+            pos_after_current_step_y = robot_pos["y"] + 1
+            pos_after_current_step_x = robot_pos["x"]
+            heading_after_current_step = robot_heading
+        elif robot_heading == "S":
+            pos_after_current_step_y = robot_pos["y"] - 1
+            pos_after_current_step_x = robot_pos["x"]
+            heading_after_current_step = robot_heading
+        elif robot_heading == "E":
+            pos_after_current_step_y = robot_pos["y"]
+            pos_after_current_step_x = robot_pos["x"] + 1
+            heading_after_current_step = robot_heading
+        elif robot_heading == "W":
+            pos_after_current_step_y = robot_pos["y"]
+            pos_after_current_step_x = robot_pos["x"] - 1
+            heading_after_current_step = robot_heading
+    elif steps[current_step] == "RIGHT":
+        # Turn right
+        heading_after_current_step = DIRECTIONS[(DIRECTIONS.index(robot_heading) + 1) % 4]
+        # Position doesn't change after turning
+        pos_after_current_step_x = robot_pos["x"]
+        pos_after_current_step_y = robot_pos["y"]
+    elif steps[current_step] == "LEFT":
+        # Turn left
+        heading_after_current_step = DIRECTIONS[(DIRECTIONS.index(robot_heading) - 1) % 4]
+        # Position doesn't change after turning
+        pos_after_current_step_x = robot_pos["x"]
+        pos_after_current_step_y = robot_pos["y"]
+    else:
+        # Unknown step, return False
+        return False
+    
+    # Now calculate position after completing the NEXT step (which we know is FORWARD)
+    if heading_after_current_step == "N":
+        pos_after_next_step_y = pos_after_current_step_y + 1
+        pos_after_next_step_x = pos_after_current_step_x
+    elif heading_after_current_step == "S":
+        pos_after_next_step_y = pos_after_current_step_y - 1
+        pos_after_next_step_x = pos_after_current_step_x
+    elif heading_after_current_step == "E":
+        pos_after_next_step_y = pos_after_current_step_y
+        pos_after_next_step_x = pos_after_current_step_x + 1
+    elif heading_after_current_step == "W":
+        pos_after_next_step_y = pos_after_current_step_y
+        pos_after_next_step_x = pos_after_current_step_x - 1
+    
+    # Check if there's a tower at the position after the NEXT step
+    for tower in green_towers:
+        if tower["x"] == pos_after_next_step_x and tower["y"] == pos_after_next_step_y:
+            print(f"Tower detected after next FORWARD step: x={pos_after_next_step_x}, y={pos_after_next_step_y}")
+            return True
+    
+    return False
 
 # The car should advance to the next stap defined in the global path
 def next_step():
@@ -464,7 +518,7 @@ def next_step():
 # code doesn't block the car from making progres
 def pickup():
     global servo_active_time
-    servo.angle = 0
+    servo.angle = ARM_UP
     servo_active_time = time.monotonic()
 
 
@@ -559,6 +613,11 @@ while True:
             reset_state()
             status_led.collision()
             continue
+        if timeout_time and time.monotonic() - timeout_time < 0.5:
+            continue
+        else:
+            timeout_time = None
+
         if steps[current_step] == "FORWARD":
             # If the current step is moving forward, just follow the line until the next intersections
             # Enhanced Intersection detection
@@ -575,15 +634,19 @@ while True:
 
             if (B_overline.status() and intersection_detected and 
                     time.monotonic() - time_since_next_step > get_intersection_delay()):
-                # A intersections was detected and now we are at the intersection -> move to next step
+                # A intersection was detected and now we are at the intersection -> move to next step
                 # Only stop the motors if the path is finished or the next step is not FORWARD.
                 possible_next_step = get_next_step()
                 if possible_next_step == None or possible_next_step != "FORWARD":
+                    print("Stopping: End of path or next step is not FORWARD")
                     stop_motors()
 
                 pickup_next_step = should_pickup_next_step()
-                if possible_next_step != None and possible_next_step == "FORWARD" and pickup_next_step:
+                if possible_next_step == "FORWARD" and pickup_next_step:
+                    print("Stopping: Tower detected at next intersection")
                     stop_motors()
+                    servo.angle = ARM_DOWN
+                    timeout_time = time.monotonic()
 
                 intersection_detected = False
                 next_step()
