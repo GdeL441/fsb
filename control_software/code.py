@@ -16,6 +16,9 @@ L_overline = Sensors.Sensor(board.GP28, 12000)
 R_overline = Sensors.Sensor(board.GP27, 14000)
 B_overline = Sensors.Sensor(board.GP26, 10000)
 
+# Calibration threshold
+calibration_threshold = 0.9
+
 # Initialize status sensor (To Be Replaced by RGB Strip)
 status_led = Statusled.Statusled(board.GP18)
 
@@ -189,7 +192,7 @@ def connect_client(request: Request):
 
 # If there is a connected websocket connection, check if there is a new incoming message
 def poll_websocket():
-    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, TURN_SPEED, steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, green_towers, websocket, time_since_next_step
+    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, TURN_SPEED, steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, green_towers, websocket, time_since_next_step, calibration_threshold
     
     if websocket is None:
         return
@@ -247,6 +250,7 @@ def poll_websocket():
                     L_overline.set_threshold(data["L"])
                     R_overline.set_threshold(data["R"])
                     B_overline.set_threshold(data["B"])
+                    calibration_threshold = data["calibration_threshold"]
                 elif data["action"] == "update_pid":
                     print("update PID parameters", data)
                     Kp = data["P"]
@@ -281,8 +285,7 @@ def poll_websocket():
                     servo.angle = ARM_DOWN
                 elif data["action"] == "calibrate":
                     print("Calibrating sensors...")
-                    # Use a slightly higher threshold for better line detection
-                    calibrate_all(threshold=0.8)
+                    calibrate_all(True) # Updates values on the frontend as well
                 else:
                     print("Received other data: ", data)
             except (ValueError, KeyError) as e:
@@ -557,16 +560,16 @@ def find(lst, fn):
     return None
 
 
-def calibrate_sensor(sensor, calibration_threshold = 0.8):
+def calibrate_sensor(sensor):
     white_value = sensor.value()
     threshold = white_value * calibration_threshold
     sensor.set_threshold(threshold)
     return threshold
 
-def calibrate_all(threshold = 0.8, send = True):
-    r_threshold = calibrate_sensor(R_overline, threshold)
-    l_threshold = calibrate_sensor(L_overline, threshold)
-    b_threshold = calibrate_sensor(B_overline, threshold)
+def calibrate_all(send = True):
+    r_threshold = calibrate_sensor(R_overline)
+    l_threshold = calibrate_sensor(L_overline)
+    b_threshold = calibrate_sensor(B_overline)
     status_led.calibration()
     print("All sensors have been calibrated")
     
@@ -592,10 +595,8 @@ def get_turning_delay():
 
 # Main loop
 while True:
-    
-    
     if not calibrated: # This will calibrate the sensors when booting the car. Can be changed to when a connection has been established.
-        calibrate_all(0.8, False)
+        calibrate_all(False) # Does not try to send the new values to the frontend, connection probably still not established
         calibrated = True
         
     # print(f"Sensor left: {L_overline.status()}")

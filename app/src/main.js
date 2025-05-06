@@ -208,7 +208,12 @@ async function connectWs(url) {
       
       // Update the threshold input fields
       thresholds = data.thresholds;
-      setThresholds(data.thresholds.L, data.thresholds.R, data.thresholds.B);
+      setThresholds(
+        data.thresholds.L, 
+        data.thresholds.R, 
+        data.thresholds.B,
+        data.thresholds.calibration_threshold
+      );
       
       // Save to localStorage
       localStorage.setItem("thresholds", JSON.stringify(data.thresholds));
@@ -719,11 +724,22 @@ window.addEventListener("DOMContentLoaded", () => {
     let L = Number(document.querySelector("#left-sensor-threshold").value)
     let R = Number(document.querySelector("#right-sensor-threshold").value)
     let B = Number(document.querySelector("#back-sensor-threshold").value)
-    thresholds = { R, L, B }
+    let calibration_threshold = Number(document.querySelector("#calibration-threshold").value)
+    
+    // Validate calibration threshold is within range
+    calibration_threshold = Math.min(Math.max(calibration_threshold, 0.1), 1.0);
+    
+    thresholds = { R, L, B, calibration_threshold }
     // Save to localStorage
-    localStorage.setItem("thresholds", JSON.stringify({ L, R, B }));
+    localStorage.setItem("thresholds", JSON.stringify({ L, R, B, calibration_threshold }));
 
-    ws.send(JSON.stringify({ action: "set_threshold", L, R, B }))
+    ws.send(JSON.stringify({ 
+      action: "set_threshold", 
+      L, 
+      R, 
+      B, 
+      calibration_threshold 
+    }))
   });
 
   applyPIDBtn.addEventListener("click", async () => {
@@ -856,16 +872,17 @@ function loadThresholds() {
   console.log(savedThresholds)
 
   if (savedThresholds) {
-    let { L, R, B } = JSON.parse(savedThresholds);
-    thresholds = { R, L, B }
-    setThresholds(L, R, B)
+    let { L, R, B, calibration_threshold } = JSON.parse(savedThresholds);
+    thresholds = { R, L, B, calibration_threshold }
+    setThresholds(L, R, B, calibration_threshold)
   }
 }
 
-function setThresholds(L, R, B) {
+function setThresholds(L, R, B, calibration_threshold = 0.8) {
   document.querySelector("#left-sensor-threshold").value = L;
   document.querySelector("#right-sensor-threshold").value = R;
   document.querySelector("#back-sensor-threshold").value = B;
+  document.querySelector("#calibration-threshold").value = calibration_threshold || 0.8;
 }
 
 function loadPID() {

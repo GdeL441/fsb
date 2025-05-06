@@ -245,16 +245,21 @@
             <div class="card-body">
               <div class="d-flex flex-column gap-2">
                 <div class="d-flex align-items-center gap-3">
-                  <label for="left-sensor-threshold" class="mb-0" style="width: 120px;">Left Sensor:</label>
+                  <label for="left-sensor-threshold" class="mb-0" style="width: 140px;">Left Sensor:</label>
                   <input type="number" class="form-control" id="left-sensor-threshold" style="width: 100px;">
                 </div>
                 <div class="d-flex align-items-center gap-3">
-                  <label for="right-sensor-threshold" class="mb-0" style="width: 120px;">Right Sensor:</label>
+                  <label for="right-sensor-threshold" class="mb-0" style="width: 140px;">Right Sensor:</label>
                   <input type="number" class="form-control" id="right-sensor-threshold" style="width: 100px;">
                 </div>
                 <div class="d-flex align-items-center gap-3">
-                  <label for="back-sensor-threshold" class="mb-0" style="width: 120px;">Back Sensor:</label>
+                  <label for="back-sensor-threshold" class="mb-0" style="width: 140px;">Back Sensor:</label>
                   <input type="number" class="form-control" id="back-sensor-threshold" style="width: 100px;">
+                </div>
+                <div class="d-flex align-items-center gap-3 mt-2">
+                  <label for="calibration-threshold" class="mb-0" style="width: 140px;">Calibration Threshold:</label>
+                  <input type="number" class="form-control" id="calibration-threshold" min="0.1" max="1.0" step="0.05" value="0.8" style="width: 100px;">
+                  <small class="text-muted">(0.1-1.0)</small>
                 </div>
               </div>
             </div>
