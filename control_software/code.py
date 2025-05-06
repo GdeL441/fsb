@@ -34,12 +34,15 @@ servo = servo.Servo(
 )
 # Timestamp at which servo was activated, this makes it possible to make the pickup non-blocking
 servo_active_time = None
+# Timestamp used for waiting at intersection if the next step is forward and we had to pickup a tower.
+# If the robot would keep moving forward, the arm would still be in the up position and would not be able
+# to pick up a possible tower on the next intersection.
 timeout_time = None
 
 # Is the timer currently running, should the car continue making progres on the steps
 started = False
 
-# Add servo constants:
+# Add servo angle constants:
 ARM_DOWN = 175
 ARM_UP = 10
 
@@ -99,15 +102,9 @@ Kp = 1.5  # Proportional gain (adjust for faster/slower correction)
 Ki = 0.01  # Integral gain (adjust for minor drifting correction)
 Kd = 0.2  # Derivative gain (reduces overshoot)
 
-# PID Constants for turning
-TURN_Kp = 2.0  # Proportional gain for turning
-TURN_Ki = 0.05  # Integral gain for turning
-TURN_Kd = 0.5  # Derivative gain for turning
-
 # Base Speed (100% = max = 65535)
 BASE_SPEED = 30  # %
 TURN_SPEED = 30  # %
-
 
 # Integral & Derivative Terms for line following
 error_sum = 0
@@ -171,6 +168,7 @@ def connect_client(request: Request):
     # Once a new websocket connects, we play a nice animation and we send all of the constants for PID, speed,
     # and thresholds to the frontend.
     status_led.connected()
+    # TODO: should we sync the current data back the frontend
     # data = {
     #     "action": "setup",
     #     "speed": BASE_SPEED,
@@ -381,7 +379,8 @@ def get_next_step():
 
     return steps[current_step + 1]
 
-
+# Currently the front of the robot is at the intersection, look in the future to check
+# if there is a tower to pick up at this (actually 'next') intersection.
 def maybe_pickup():
     global robot_pos, robot_heading 
     current_pos = robot_pos.copy()
@@ -400,6 +399,9 @@ def maybe_pickup():
     robot_pos = current_pos
     robot_heading = current_heading
 
+# This is a helper function for determening if the robot should wait at the intersection before moving forward
+# It checks if there is a tower on the next intersection forward that should be picked up, thus we should wait
+# for the arm to come back down. Otherwise the arm would not be down in time.
 def should_pickup_next_step():
     global robot_pos, robot_heading, current_step, steps, green_towers
     
@@ -476,16 +478,6 @@ def next_step():
     # Calculate and update the new position and heading, since it has completed a step.
     update_pos_and_heading()
 
-    # If there is a green tower on the current position, use the arm to pickup the tower.
-    # Maybe we change this to a pickup command from the backtracking algorithm?
-    # tower = find(
-    #     green_towers, lambda t: t["x"] == robot_pos["x"] and t["y"] == robot_pos["y"]
-    # )
-    # if tower != None:
-    #     print("Pick up item with servo arm")
-    #     pickup()
-    #     green_towers.remove(tower)
-
     current_step += 1
     time_since_next_step = time.monotonic()
 
@@ -499,6 +491,7 @@ def next_step():
         send_websocket_message(data, important=True)
         return
     else: 
+        # Call these turn functions here instead of continiously calling them in the main loop
         if steps[current_step] == "LEFT":
             turn_left()
         elif steps[current_step] == "RIGHT":
@@ -508,19 +501,12 @@ def next_step():
     send_websocket_message(data, important=True)
 
 
-# Pick up a tower by turning the servo 180 degrees, keep track of this Timestamp
-# so after a specified duration, the arm moves back down, this is done so this
-# code doesn't block the car from making progres
+# Pick up a tower by turning the servo 180 degrees, keep track of this Timestamp 
+# for showing the picking-up state on the statusled
 def pickup():
     global servo_active_time
     servo.angle = ARM_UP
     servo_active_time = time.monotonic()
-
-
-# Convert duty_cycle (0-65535) to % speeds (0-100)
-# def duty_cycle_to_speed(duty_cycle):
-#     speed = (duty_cycle * 100) / 65535  # Convert duty cycle back to percentage
-#     return speed
 
 
 # Used for calibrating the LDRs from the app. Only in monitoring mode.
@@ -557,12 +543,15 @@ def find(lst, fn):
     return None
 
 
+# Calibrate a sensor by checking the current (white) adc-value and then multiplying
+# if by a factor to get the threshold.
 def calibrate_sensor(sensor, calibration_threshold = 0.8):
     white_value = sensor.value()
     threshold = white_value * calibration_threshold
     sensor.set_threshold(threshold)
     return threshold
 
+# Calibrate all sensors and send the results back to the frontend
 def calibrate_all(threshold = 0.8, send = True):
     r_threshold = calibrate_sensor(R_overline, threshold)
     l_threshold = calibrate_sensor(L_overline, threshold)
@@ -582,18 +571,18 @@ def calibrate_all(threshold = 0.8, send = True):
         }
         send_websocket_message(data, important=True)
 
+# Calculate minimum time needed to make a FORWARD move
 def get_intersection_delay():
     # Base delay + speed factor
     return 0.5 + (1.0 - (BASE_SPEED / 100.0)) * 0.5  # Can be adjusted (testing required)
 
+# Calculate minimum time needed to make a turn
 def get_turning_delay():
      # Base delay + speed factor
      return 0.5 + (1.0 - (TURN_SPEED / 100.0)) * 0.5  # Can be adjusted (testing required)
 
 # Main loop
 while True:
-    
-    
     if not calibrated: # This will calibrate the sensors when booting the car. Can be changed to when a connection has been established.
         calibrate_all(0.8, False)
         calibrated = True
@@ -602,12 +591,13 @@ while True:
     # print(f"Sensor right: {R_overline.status()}")
     # print(f"Sensor back: {B_overline.status()}")
     if started == True:
-        
         if collision.detect():
             print("Collision Detected! Resetting...")      
             reset_state()
             status_led.collision()
             continue
+
+        # Don't do anything if the car is in timeout state, used for waiting on intersections
         if timeout_time and time.monotonic() - timeout_time < 0.5:
             continue
         else:
@@ -630,6 +620,9 @@ while True:
                     print("Stopping: End of path or next step is not FORWARD")
                     stop_motors()
 
+                # Robot should stop if the next move is FORWARD and there is a tower to pick up at 
+                # the next intersections.
+                #: TODO: THIS DOESN'T WORK BECAUSE THIS SHOULD ONLY HAPPEN IF THERE IS TOWER AT THE CURRENT POSITION
                 pickup_next_step = should_pickup_next_step()
                 if possible_next_step == "FORWARD" and pickup_next_step:
                     print("Stopping: Tower detected at next intersection")
