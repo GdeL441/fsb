@@ -398,6 +398,25 @@ def maybe_pickup():
     robot_pos = current_pos
     robot_heading = current_heading
 
+def should_pickup_next_step():
+    should_pickup = False
+    global robot_pos, robot_heading 
+    current_pos = robot_pos.copy()
+    current_heading = robot_heading
+
+    update_pos_and_heading(False)
+
+    tower = find(
+        green_towers, lambda t: t["x"] == robot_pos["x"] and t["y"] == robot_pos["y"]
+    )
+    if tower != None:
+        should_pickup = True
+
+    robot_pos = current_pos
+    robot_heading = current_heading
+
+    return should_pickup
+
 # The car should advance to the next stap defined in the global path
 def next_step():
     global current_step, started, time_since_next_step, intersection_detected
@@ -557,6 +576,10 @@ while True:
                 # Only stop the motors if the path is finished or the next step is not FORWARD.
                 possible_next_step = get_next_step()
                 if possible_next_step == None or possible_next_step != "FORWARD":
+                    stop_motors()
+
+                pickup_next_step = should_pickup_next_step()
+                if possible_next_step != None and possible_next_step == "FORWARD" and pickup_next_step:
                     stop_motors()
 
                 intersection_detected = False
