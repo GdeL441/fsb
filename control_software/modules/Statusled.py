@@ -184,8 +184,8 @@ class Statusled:
         
             # Set pixel color (white with gradient)
             self.pixels[pixel_pos] = (
-                int(255 * brightness),  # R
-                int(255 * brightness),  # G
+                0,  # R
+                0,  # G
                 int(255 * brightness),  # B
             )
     
@@ -234,7 +234,7 @@ class Statusled:
             time.sleep(0.01)
         
         # Ensure all pixels are lit at the end
-        self.pixels.fill((0, 255, 0))
+        self.pixels.fill((0, 255, 255))
         self.pixels.show()
         
         # Optional: flash the completed circle a couple times to indicate completion

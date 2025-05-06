@@ -542,7 +542,7 @@ while True:
                 # If the robot is turning right, it should stop turning once the right(TODO: left?) sensor hits the black line
                 turn_right()
                 if (
-                    ( R_overline.status() or L_overline.status() )
+                    R_overline.status()
                     and time.monotonic() - time_since_next_step > 0.9
                 ):
                     stop_motors()
@@ -551,7 +551,7 @@ while True:
                 # If the robot is turning left, it should stop turning once the left(TODO: right?) sensor hits the black line
                 turn_left()
                 if (
-                    ( L_overline.status() or R_overline.status() )
+                    L_overline.status()
                     and time.monotonic() - time_since_next_step > 0.9
                 ):
                     stop_motors()
