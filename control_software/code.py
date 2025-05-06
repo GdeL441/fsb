@@ -40,7 +40,7 @@ timeout_time = None
 started = False
 
 # Add servo constants:
-ARM_DOWN = 172
+ARM_DOWN = 175
 ARM_UP = 10
 
 # Keep track if first calibration has been done.
@@ -107,11 +107,6 @@ TURN_Kd = 0.5  # Derivative gain for turning
 # Base Speed (100% = max = 65535)
 BASE_SPEED = 30  # %
 TURN_SPEED = 30  # %
-
-# Enhanced Intersction Detection
-intersection_samples = 0
-INTERSECTION_SAMPLES_NEEDED = 1  # Require multiple detections
-
 
 
 # Integral & Derivative Terms for line following
@@ -287,7 +282,7 @@ def poll_websocket():
                 elif data["action"] == "calibrate":
                     print("Calibrating sensors...")
                     # Use a slightly higher threshold for better line detection
-                    calibrate_all(threshold=0.9)
+                    calibrate_all(threshold=0.8)
                 else:
                     print("Received other data: ", data)
             except (ValueError, KeyError) as e:
@@ -600,7 +595,7 @@ while True:
     
     
     if not calibrated: # This will calibrate the sensors when booting the car. Can be changed to when a connection has been established.
-        calibrate_all(0.9, False)
+        calibrate_all(0.8, False)
         calibrated = True
         
     # print(f"Sensor left: {L_overline.status()}")
@@ -622,15 +617,9 @@ while True:
             # If the current step is moving forward, just follow the line until the next intersections
             # Enhanced Intersection detection
             if L_overline.status() and R_overline.status():
-                intersection_samples += 1
-                if intersection_samples >= INTERSECTION_SAMPLES_NEEDED:
-                    intersection_detected = True
+                intersection_detected = True
+                maybe_pickup()
 
-                    maybe_pickup()
-
-                    intersection_samples = 0
-            else:
-                intersection_samples = 0
 
             if (B_overline.status() and intersection_detected and 
                     time.monotonic() - time_since_next_step > get_intersection_delay()):
@@ -707,15 +696,17 @@ while True:
             send_sensor_values()
         else:
             stop_motors()
-            status_led.waiting_for_orders()
+            if websocket is not None:
+                status_led.waiting_for_orders()
+
 
     if servo_active_time != None:
         status_led.collection()
         # The servo is activated to move up, if it has been in this 'up' state for longer than 1 second,
         # move the servo back down
         if time.monotonic() - servo_active_time > 0.7:
-            servo.angle = 175
             servo_active_time = None
+            servo.angle = ARM_DOWN
     elif started:
         status_led.next_object()
 
@@ -723,11 +714,10 @@ while True:
     server.poll()
 
     if websocket is not None:
-        # If there is a websocket connection, send all queued messages (setup data, ...)
+        # If there is a websocket connection, send all queued messages (setup data, ...)            
         while len(message_queue) > 0:
             msg = message_queue.pop(0)
             websocket.send_message(json.dumps(msg), fail_silently=True)
-
         poll_websocket()
     else:
         status_led.loading_animation()
