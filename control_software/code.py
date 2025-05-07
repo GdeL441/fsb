@@ -333,11 +333,8 @@ def reset_state():
 # Turn the robot to the left with a given speed, used on intersection.
 # Defaults to turn_speed
 def turn_left():
-    global time_since_next_step, turn_error_sum, turn_last_error
+    global time_since_next_step, turn_last_error
     
-    # Reset PID variables for turning
-    turn_error_sum = 0
-    turn_last_error = 0
     
     # Calculate time since turn started
     turn_elapsed_time = time.monotonic() - time_since_next_step
@@ -346,9 +343,10 @@ def turn_left():
     # - Full speed until 400ms
     # - Linear ramp down from 400ms to 600ms (100% to 70%)
     # - 70% speed after 600ms
-    if turn_elapsed_time < 0.9:
+    if turn_elapsed_time < 0.6:
         # Full speed for first 400ms
-        turn_speed = TURN_SPEED
+        # turn_speed = TURN_SPEED
+        turn_speed = 100
     elif turn_elapsed_time < 0.95:
         # Linear ramp down between 400ms and 600ms
         ramp_progress = (turn_elapsed_time - 0.4) / 0.2  # 0.0 to 1.0 over 200ms
@@ -366,11 +364,7 @@ def turn_left():
 # Turn the robot to the right with a given speed, used on intersection.
 # Defaults to turn_speed
 def turn_right():
-    global time_since_next_step, turn_error_sum, turn_last_error
-    
-    # Reset PID variables for turning
-    turn_error_sum = 0
-    turn_last_error = 0
+    global time_since_next_step, 
     
     # Calculate time since turn started
     turn_elapsed_time = time.monotonic() - time_since_next_step
@@ -379,10 +373,11 @@ def turn_right():
     # - Full speed until 800ms
     # - Linear ramp down from 900ms to 1100ms (100% to 80%)
     # - 80% speed after 1100ms
-    if turn_elapsed_time < 0.85:
+    if turn_elapsed_time < 0.6;
         # Full speed for first 400ms
-        turn_speed = TURN_SPEED
-    elif turn_elapsed_time < 0.90:
+        # turn_speed = TURN_SPEED
+        turn_speed = 100
+    elif turn_elapsed_time < 0.95:
         # Linear ramp down between 900ms and 1100ms
         ramp_progress = (turn_elapsed_time - 0.4) / 0.2  # 0.0 to 1.0 over 200ms
         ramp_factor = 1.0 - (0.3 * ramp_progress)  # 1.0 to 0.8 over 200ms
@@ -677,10 +672,10 @@ def check_for_intersection():
     front_sensors_on_line = L_overline.status() and R_overline.status()
     
     if front_sensors_on_line and not intersection_detected:
-            # Confirmed intersection after debounce period
-            print("Front of car over intersection")
-            intersection_detected = True
-            maybe_pickup()  # Check if we need to pick up a tower
+        # Confirmed intersection after debounce period
+        print("Front of car over intersection")
+        intersection_detected = True
+        maybe_pickup()  # Check if we need to pick up a tower
 
 
 # Main loop
@@ -803,7 +798,7 @@ while True:
             servo_active_time = None
             servo.angle = ARM_DOWN
     elif started:
-        status_led.next_object()
+        # status_led.next_object()
     elif finished:
         # Finished state
         status_led.finished()

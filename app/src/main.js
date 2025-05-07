@@ -147,13 +147,13 @@ async function connectWs(url) {
   ws.onmessage = event => {
     const data = JSON.parse(event.data);
     addToLog(data, 'received');
-    
+
     if (data.action === "sensor_values") {
       // Get current thresholds
       const thresholdL = Number(document.querySelector("#left-sensor-threshold").value);
       const thresholdR = Number(document.querySelector("#right-sensor-threshold").value);
       const thresholdB = Number(document.querySelector("#back-sensor-threshold").value);
-      
+
       // Update displays with color coding
       updateSensorValueDisplay("left-sensor-value", data.L, thresholdL);
       updateSensorValueDisplay("right-sensor-value", data.R, thresholdR);
@@ -205,27 +205,27 @@ async function connectWs(url) {
       stopTimer()
     } else if (data.action === "thresholds_updated") {
       console.log("Received calibrated thresholds:", data.thresholds);
-      
+
       // Update the threshold input fields
       thresholds = data.thresholds;
       setThresholds(
-        data.thresholds.L, 
-        data.thresholds.R, 
+        data.thresholds.L,
+        data.thresholds.R,
         data.thresholds.B,
         data.thresholds.L_R_calibration_threshold,
         data.thresholds.B_calibration_threshold
       );
-      
+
       // Save to localStorage
       localStorage.setItem("thresholds", JSON.stringify(data.thresholds));
-      
+
       // Reset the calibrate button if it's in loading state
       const calibrateBtn = document.querySelector("#calibrate-btn");
       if (calibrateBtn) {
         calibrateBtn.disabled = false;
         calibrateBtn.textContent = "Calibrate Sensors";
       }
-      
+
       // Show notification
       showCalibrationNotification();
     }
@@ -445,33 +445,33 @@ function drawPath() {
     ctx.moveTo(fromX, fromY);
     ctx.lineTo(toX, toY);
     ctx.stroke();
-    
+
     // Calculate midpoint for arrow
     const midX = (fromX + toX) / 2;
     const midY = (fromY + toY) / 2;
-    
+
     // Calculate direction angle
     const angle = Math.atan2(toY - fromY, toX - fromX);
-    
+
     // Draw direction arrow at midpoint
     const arrowSize = cellSize / 5;
-    
+
     // Use the same purple color as the line
     ctx.fillStyle = "purple";
-    
+
     // Save current context state
     ctx.save();
     ctx.translate(midX, midY);
     ctx.rotate(angle);
-    
+
     // Draw half-arrow (only on one side of the line)
     ctx.beginPath();
     ctx.moveTo(0, 0);  // Start at midpoint of the line
-    ctx.lineTo(-arrowSize, arrowSize/2);  // Go back and down
-    ctx.lineTo(-arrowSize, -arrowSize/2); // Go back and up
+    ctx.lineTo(-arrowSize, arrowSize / 2);  // Go back and down
+    ctx.lineTo(-arrowSize, -arrowSize / 2); // Go back and up
     ctx.closePath();
     ctx.fill();
-    
+
     ctx.restore();
   }
 }
@@ -669,6 +669,7 @@ window.addEventListener("DOMContentLoaded", () => {
     stopTimer()
     resetTimer()
     score = 0
+    document.querySelector("#score").innerText = score
     currentPosition = {
       x: 6,
       y: 0,
@@ -690,11 +691,11 @@ window.addEventListener("DOMContentLoaded", () => {
 
   sensorsBtn.addEventListener("click", async () => {
     if (!ws) return;
-  
+
     // Toggle monitoring state
     const isCurrentlyMonitoring = sensorsBtn.getAttribute("data-monitoring") === "true";
     const newMonitoringState = !isCurrentlyMonitoring;
-  
+
     // Update button appearance
     if (newMonitoringState) {
       sensorsBtn.classList.remove("btn-success");
@@ -705,13 +706,13 @@ window.addEventListener("DOMContentLoaded", () => {
       sensorsBtn.classList.add("btn-success");
       sensorsBtn.textContent = "Start Monitoring";
     }
-  
+
     // Update data attribute
     sensorsBtn.setAttribute("data-monitoring", newMonitoringState);
-  
+
     // Send command to server
     ws.send(JSON.stringify({ action: "monitor_sensor" }));
-  
+
     // If starting monitoring, clear previous values
     if (newMonitoringState) {
       document.getElementById("left-sensor-value").textContent = "--";
@@ -727,20 +728,20 @@ window.addEventListener("DOMContentLoaded", () => {
     let B = Number(document.querySelector("#back-sensor-threshold").value)
     let L_R_calibration_threshold = Number(document.querySelector("#calibration-threshold").value)
     let B_calibration_threshold = Number(document.querySelector("#back-calibration-threshold").value)
-    
+
     // Validate calibration thresholds are within range
     L_R_calibration_threshold = Math.min(Math.max(L_R_calibration_threshold, 0.1), 1.0);
     B_calibration_threshold = Math.min(Math.max(B_calibration_threshold, 0.1), 1.0);
-    
+
     thresholds = { L, R, B, L_R_calibration_threshold, B_calibration_threshold }
     // Save to localStorage
     localStorage.setItem("thresholds", JSON.stringify(thresholds));
 
-    ws.send(JSON.stringify({ 
-      action: "set_threshold", 
-      L, 
-      R, 
-      B, 
+    ws.send(JSON.stringify({
+      action: "set_threshold",
+      L,
+      R,
+      B,
       L_R_calibration_threshold,
       B_calibration_threshold
     }))
@@ -778,7 +779,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   manualBtn.addEventListener("click", async () => {
     if (!ws) return
-    
+
     if (manualBtn.classList.contains("btn-primary")) {
       // Changing to manual control mode
       manualBtn.innerText = "Stop Takeover"
@@ -792,20 +793,20 @@ window.addEventListener("DOMContentLoaded", () => {
       manualBtn.classList.remove("btn-danger");
       ws.send(JSON.stringify({ action: "disable_manual_control" }))
     }
-    
+
     manual_control = !manual_control
   });
 
   calibrateBtn.addEventListener("click", async () => {
     if (!ws) return;
-    
+
     // Show a loading state on the button
     calibrateBtn.disabled = true;
     calibrateBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Calibrating...';
-    
+
     // Send calibration command
     ws.send(JSON.stringify({ action: "calibrate" }));
-    
+
     // Reset button after 3 seconds (even if no response)
     setTimeout(() => {
       calibrateBtn.disabled = false;
@@ -927,10 +928,10 @@ function setSpeed(speed, turnSpeed) {
 function updateSensorValueDisplay(elementId, value, threshold) {
   const element = document.getElementById(elementId);
   if (!element) return;
-  
+
   // Update the text content
   element.textContent = value;
-  
+
   // Apply color based on threshold comparison
   if (value < threshold) {
     // Below threshold (on line) - display in red
@@ -958,7 +959,7 @@ function showCalibrationNotification() {
   if (notification) {
     // Remove d-none class to show the notification
     notification.classList.remove("d-none");
-    
+
     // Hide the notification after 3 seconds
     setTimeout(() => {
       notification.classList.add("d-none");
