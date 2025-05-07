@@ -212,7 +212,8 @@ async function connectWs(url) {
         data.thresholds.L, 
         data.thresholds.R, 
         data.thresholds.B,
-        data.thresholds.calibration_threshold
+        data.thresholds.L_R_calibration_threshold,
+        data.thresholds.B_calibration_threshold
       );
       
       // Save to localStorage
@@ -724,21 +725,24 @@ window.addEventListener("DOMContentLoaded", () => {
     let L = Number(document.querySelector("#left-sensor-threshold").value)
     let R = Number(document.querySelector("#right-sensor-threshold").value)
     let B = Number(document.querySelector("#back-sensor-threshold").value)
-    let calibration_threshold = Number(document.querySelector("#calibration-threshold").value)
+    let L_R_calibration_threshold = Number(document.querySelector("#calibration-threshold").value)
+    let B_calibration_threshold = Number(document.querySelector("#back-calibration-threshold").value)
     
-    // Validate calibration threshold is within range
-    calibration_threshold = Math.min(Math.max(calibration_threshold, 0.1), 1.0);
+    // Validate calibration thresholds are within range
+    L_R_calibration_threshold = Math.min(Math.max(L_R_calibration_threshold, 0.1), 1.0);
+    B_calibration_threshold = Math.min(Math.max(B_calibration_threshold, 0.1), 1.0);
     
-    thresholds = { R, L, B, calibration_threshold }
+    thresholds = { L, R, B, L_R_calibration_threshold, B_calibration_threshold }
     // Save to localStorage
-    localStorage.setItem("thresholds", JSON.stringify({ L, R, B, calibration_threshold }));
+    localStorage.setItem("thresholds", JSON.stringify(thresholds));
 
     ws.send(JSON.stringify({ 
       action: "set_threshold", 
       L, 
       R, 
       B, 
-      calibration_threshold 
+      L_R_calibration_threshold,
+      B_calibration_threshold
     }))
   });
 
@@ -872,17 +876,18 @@ function loadThresholds() {
   console.log(savedThresholds)
 
   if (savedThresholds) {
-    let { L, R, B, calibration_threshold } = JSON.parse(savedThresholds);
-    thresholds = { R, L, B, calibration_threshold }
-    setThresholds(L, R, B, calibration_threshold)
+    let { L, R, B, L_R_calibration_threshold, B_calibration_threshold } = JSON.parse(savedThresholds);
+    thresholds = { L, R, B, L_R_calibration_threshold, B_calibration_threshold }
+    setThresholds(L, R, B, L_R_calibration_threshold, B_calibration_threshold)
   }
 }
 
-function setThresholds(L, R, B, calibration_threshold) {
+function setThresholds(L, R, B, L_R_calibration_threshold, B_calibration_threshold) {
   document.querySelector("#left-sensor-threshold").value = L;
   document.querySelector("#right-sensor-threshold").value = R;
   document.querySelector("#back-sensor-threshold").value = B;
-  document.querySelector("#calibration-threshold").value = calibration_threshold;
+  document.querySelector("#calibration-threshold").value = L_R_calibration_threshold || 0.8;
+  document.querySelector("#back-calibration-threshold").value = B_calibration_threshold || 0.9;
 }
 
 function loadPID() {

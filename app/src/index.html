@@ -239,27 +239,45 @@
         <div class="col-sm-6 d-flex">
           <div class="card w-100">
             <div class="card-header d-flex justify-content-between align-items-center">
-              <h4 class="mb-0">Sensor Thresholds</h4>
+              <h4 class="mb-0">Sensor Settings</h4>
               <button id="apply-thresholds-btn" class="btn btn-primary" style="width: 150px;">Apply</button>
             </div>
             <div class="card-body">
               <div class="d-flex flex-column gap-2">
-                <div class="d-flex align-items-center gap-3">
-                  <label for="left-sensor-threshold" class="mb-0" style="width: 140px;">Left Sensor:</label>
-                  <input type="number" class="form-control" id="left-sensor-threshold" style="width: 100px;">
+                <div class="d-flex align-items-center justify-content-between gap-3">
+                  <label for="left-sensor-threshold" class="mb-0">Left Sensor:</label>
+                  <div class="d-flex align-items-center">
+                    <small class="text-muted me-2">(0 - 65535)</small>
+                    <input type="number" class="form-control ms-auto" id="left-sensor-threshold" style="width: 100px;">
+                  </div>
                 </div>
-                <div class="d-flex align-items-center gap-3">
-                  <label for="right-sensor-threshold" class="mb-0" style="width: 140px;">Right Sensor:</label>
-                  <input type="number" class="form-control" id="right-sensor-threshold" style="width: 100px;">
+                <div class="d-flex align-items-center justify-content-between gap-3">
+                  <label for="right-sensor-threshold" class="mb-0">Right Sensor:</label>
+                  <div class="d-flex align-items-center">
+                    <small class="text-muted me-2">(0 - 65535)</small>
+                    <input type="number" class="form-control ms-auto" id="right-sensor-threshold" style="width: 100px;">
+                  </div>
                 </div>
-                <div class="d-flex align-items-center gap-3">
-                  <label for="back-sensor-threshold" class="mb-0" style="width: 140px;">Back Sensor:</label>
-                  <input type="number" class="form-control" id="back-sensor-threshold" style="width: 100px;">
+                <div class="d-flex align-items-center justify-content-between gap-3">
+                  <label for="back-sensor-threshold" class="mb-0">Back Sensor:</label>
+                  <div class="d-flex align-items-center">
+                    <small class="text-muted me-2">(0 - 65535)</small>
+                    <input type="number" class="form-control ms-auto" id="back-sensor-threshold" style="width: 100px;">
+                  </div>
                 </div>
-                <div class="d-flex align-items-center gap-3 mt-2">
-                  <label for="calibration-threshold" class="mb-0" style="width: 140px;">Calibration Threshold:</label>
-                  <input type="number" class="form-control" id="calibration-threshold" min="0.1" max="1.0" step="0.05" style="width: 100px;">
-                  <small class="text-muted">(0.1-1.0)</small>
+                <div class="d-flex align-items-center justify-content-between gap-3 mt-2">
+                  <label for="calibration-threshold" class="mb-0">Left and Right Calibration Threshold:</label>
+                  <div class="d-flex align-items-center">
+                    <small class="text-muted me-2">(0.01 - 1.0)</small>
+                    <input type="number" class="form-control ms-auto" id="calibration-threshold" min="0.01" max="1.0" step="0.01" style="width: 100px;">
+                  </div>
+                </div>
+                <div class="d-flex align-items-center justify-content-between gap-3 mt-2">
+                  <label for="back-calibration-threshold" class="mb-0">Rear Calibration Threshold:</label>
+                  <div class="d-flex align-items-center">
+                    <small class="text-muted me-2">(0.01 - 1.0)</small>
+                    <input type="number" class="form-control ms-auto" id="back-calibration-threshold" min="0.01" max="1.0" step="0.01" style="width: 100px;">
+                  </div>
                 </div>
               </div>
             </div>
@@ -301,17 +319,17 @@
             </div>
             <div class="card-body">
               <div class="d-flex flex-column gap-2">
-                <div class="d-flex align-items-center gap-3">
-                  <label for="kp-value" class="mb-0" style="width: 180px;">Proportional Constant (Kp):</label>
-                  <input type="number" class="form-control" id="kp-value" style="width: 100px;">
+                <div class="d-flex align-items-center justify-content-between gap-3">
+                  <label for="kp-value" class="mb-0">Proportional Constant (Kp):</label>
+                  <input type="number" class="form-control ms-auto" id="kp-value" style="width: 100px;">
                 </div>
-                <div class="d-flex align-items-center gap-3">
-                  <label for="ki-value" class="mb-0" style="width: 180px;">Integral Constant (Ki):</label>
-                  <input type="number" class="form-control" id="ki-value" style="width: 100px;">
+                <div class="d-flex align-items-center justify-content-between gap-3">
+                  <label for="ki-value" class="mb-0">Integral Constant (Ki):</label>
+                  <input type="number" class="form-control ms-auto" id="ki-value" style="width: 100px;">
                 </div>
-                <div class="d-flex align-items-center gap-3">
-                  <label for="kd-value" class="mb-0" style="width: 180px;">Derivative Constant (Kd):</label>
-                  <input type="number" class="form-control" id="kd-value" style="width: 100px;">
+                <div class="d-flex align-items-center justify-content-between gap-3">
+                  <label for="kd-value" class="mb-0">Derivative Constant (Kd):</label>
+                  <input type="number" class="form-control ms-auto" id="kd-value" style="width: 100px;">
                 </div>
               </div>
             </div>
@@ -324,15 +342,21 @@
               <button id="apply-speed-btn" class="btn btn-primary" style="width: 150px;">Apply</button>
             </div>
             <div class="card-body">
-              <div class="d-flex align-items-center gap-3 mb-3">
-                <label for="speed-value" class="mb-0" style="width: 140px;">Straight line speed :</label>
-                <input type="number" class="form-control" id="speed-value" style="width: 100px;">
-                <p class="mb-0">(0 - 100)</p>
-              </div>
-              <div class="d-flex align-items-center gap-3">
-                <label for="turn-speed-value" class="mb-0" style="width: 140px;">Turning speed :</label>
-                <input type="number" class="form-control" id="turn-speed-value" style="width: 100px;">
-                <p class="mb-0">(0 - 100)</p>
+              <div class="d-flex flex-column gap-2">
+                <div class="d-flex align-items-center justify-content-between gap-3">
+                  <label for="speed-value" class="mb-0">Straight Line Speed:</label>
+                  <div class="d-flex align-items-center">
+                    <small class="text-muted me-2">(0 - 100)</small>
+                    <input type="number" class="form-control ms-auto" id="speed-value" style="width: 100px;">
+                  </div>
+                </div>
+                <div class="d-flex align-items-center justify-content-between gap-3">
+                  <label for="turn-speed-value" class="mb-0">Turning Speed:</label>
+                  <div class="d-flex align-items-center">
+                    <small class="text-muted me-2">(0 - 100)</small>
+                    <input type="number" class="form-control ms-auto" id="turn-speed-value" style="width: 100px;">
+                  </div>
+                </div>
               </div>
             </div>
           </div>

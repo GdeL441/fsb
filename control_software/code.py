@@ -17,7 +17,8 @@ R_overline = Sensors.Sensor(board.GP27, 14000)
 B_overline = Sensors.Sensor(board.GP26, 10000)
 
 # Calibration threshold
-calibration_threshold = 0.9
+L_R_calibration_threshold = 0.8
+B_calibration_threshold = 0.9
 
 # Initialize status sensor (To Be Replaced by RGB Strip)
 status_led = Statusled.Statusled(board.GP18)
@@ -27,7 +28,7 @@ Motor_Left = Motors.Motor(board.GP14, board.GP15)
 Motor_Right = Motors.Motor(board.GP17, board.GP16)
 
 # Initialize Ultrasonic, in cm
-collision = Ultrasonic.Collision(10, board.GP0, board.GP1)
+#collision = Ultrasonic.Collision(10, board.GP0, board.GP1)
 
 # Initialize servo motor
 servo = servo.Servo(
@@ -48,6 +49,10 @@ ARM_UP = 10
 
 # Keep track if first calibration has been done.
 calibrated = False
+
+# Has the car finished? (For the statusled)
+finished = False
+
 
 # Keep track of the time since next_step called, this will help when turning
 time_since_next_step = time.monotonic()
@@ -192,7 +197,7 @@ def connect_client(request: Request):
 
 # If there is a connected websocket connection, check if there is a new incoming message
 def poll_websocket():
-    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, TURN_SPEED, steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, green_towers, websocket, time_since_next_step, calibration_threshold
+    global started, current_step, error_sum, last_error, MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, TURN_SPEED, steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, green_towers, websocket, time_since_next_step, L_R_calibration_threshold, B_calibration_threshold
     
     if websocket is None:
         return
@@ -250,7 +255,8 @@ def poll_websocket():
                     L_overline.set_threshold(data["L"])
                     R_overline.set_threshold(data["R"])
                     B_overline.set_threshold(data["B"])
-                    calibration_threshold = data["calibration_threshold"]
+                    L_R_calibration_threshold = data["L_R_calibration_threshold"]
+                    B_calibration_threshold = data["B_calibration_threshold"]
                 elif data["action"] == "update_pid":
                     print("update PID parameters", data)
                     Kp = data["P"]
@@ -307,7 +313,7 @@ print("Server started, open for websocket connection")
 # Reset the cars state, this will be triggered either by the frontend or
 # when the car ran into a wall
 def reset_state():
-    global started, current_step, error_sum, last_error, intersection_detected, intersection_detection_time, robot_pos, robot_heading, green_towers, servo_active_time
+    global started, current_step, error_sum, last_error, intersection_detected, intersection_detection_time, robot_pos, robot_heading, green_towers, servo_active_time, finished
     print("Reset state")
     started = False
     stop_motors()
@@ -319,8 +325,9 @@ def reset_state():
     robot_pos = {"x": 6, "y": 0}
     robot_heading = "N"  # "N" "E" "S" "W"
     green_towers = []
-    servo_active_time = None # Ook nog servos naar 0° zetten of gebeurt dit direct?
+    servo_active_time = None 
     servo.angle = ARM_DOWN
+    finished = False
 
 
 # Turn the robot to the left with a given speed, used on intersection.
@@ -369,27 +376,24 @@ def turn_right():
     turn_elapsed_time = time.monotonic() - time_since_next_step
     
     # Apply speed profile:
-    # - Full speed until 400ms
-    # - Linear ramp down from 400ms to 600ms (100% to 70%)
-    # - 70% speed after 600ms
-    if turn_elapsed_time < 0.9:
+    # - Full speed until 800ms
+    # - Linear ramp down from 900ms to 1100ms (100% to 80%)
+    # - 80% speed after 1100ms
+    if turn_elapsed_time < 0.85:
         # Full speed for first 400ms
         turn_speed = TURN_SPEED
-    elif turn_elapsed_time < 0.95:
-        # Linear ramp down between 400ms and 600ms
+    elif turn_elapsed_time < 0.90:
+        # Linear ramp down between 900ms and 1100ms
         ramp_progress = (turn_elapsed_time - 0.4) / 0.2  # 0.0 to 1.0 over 200ms
-        ramp_factor = 1.0 - (0.3 * ramp_progress)  # 1.0 to 0.7 over 200ms
+        ramp_factor = 1.0 - (0.3 * ramp_progress)  # 1.0 to 0.8 over 200ms
         turn_speed = TURN_SPEED * ramp_factor
     else:
-        # 70% speed after 600ms
+        # 80% speed after 1100ms
         turn_speed = TURN_SPEED * 0.8
     
     # Apply turn speeds
     Motor_Left.run(turn_speed)
     Motor_Right.run(-turn_speed)
-
-
-# Maybe ramp down instead of ramp up???
 
 
 def stop_motors():
@@ -525,7 +529,7 @@ def should_pickup_next_step():
 
 # The car should advance to the next stap defined in the global path
 def next_step():
-    global current_step, started, time_since_next_step, intersection_detected
+    global current_step, started, time_since_next_step, intersection_detected, finished
 
     # Calculate and update the new position and heading, since it has completed a step.
     update_pos_and_heading()
@@ -550,6 +554,7 @@ def next_step():
         data = {
             "action": "finished",
         }
+        finished = True
         send_websocket_message(data, important=True)
         return
     else: 
@@ -566,7 +571,8 @@ def next_step():
 # so after a specified duration, the arm moves back down, this is done so this
 # code doesn't block the car from making progres
 def pickup():
-    global servo_active_time
+    global servo_active_time, timeout_time
+    timeout_time = time.monotonic()
     
     # Move servo to pickup position
     servo.angle = ARM_UP
@@ -620,43 +626,30 @@ def find(lst, fn):
             return x
     return None
 
-
-# Improved sensor calibration with multiple samples
-def calibrate_sensor(sensor):
-    # Take multiple readings for more stable calibration
-    samples = []
-    for _ in range(5):  # Take 5 samples
-        samples.append(sensor.value())
-        time.sleep(0.01)  # Short delay between samples
-    
-    # Use median value to avoid outliers
-    samples.sort()
-    white_value = samples[2]  # Middle value (median)
-    
-    threshold = white_value * calibration_threshold
-    sensor.set_threshold(threshold)
-    return threshold
-
 def calibrate_all(send = True):
     status_led.calibration()
-    r_threshold = calibrate_sensor(R_overline)
-    l_threshold = calibrate_sensor(L_overline)
-    b_threshold = calibrate_sensor(B_overline)
+    r_threshold = R_overline.calibrate(L_R_calibration_threshold)
+    l_threshold = L_overline.calibrate(L_R_calibration_threshold)
+    b_threshold = B_overline.calibrate(B_calibration_threshold)
     status_led.calibration_finished()
     print("All sensors have been calibrated")
     
-    # Send the new threshold values to the frontend
-    if send:
+    
+    if send: # Send the new threshold values to the frontend
         data = {
             "action": "thresholds_updated",
             "thresholds": {
                 "L": l_threshold,
                 "R": r_threshold,
                 "B": b_threshold,
-                "calibration_threshold": calibration_threshold
+                "L_R_calibration_threshold": L_R_calibration_threshold,
+                "B_calibration_threshold": B_calibration_threshold
             }
         }
         send_websocket_message(data, important=True)
+
+
+
 
 def get_intersection_delay():
     """Calculate appropriate delay for intersection detection based on speed"""
@@ -702,11 +695,11 @@ while True:
     # print(f"Sensor back: {B_overline.status()}")
     if started == True:
         
-        if collision.detect():
-            print("Collision Detected! Resetting...")      
-            reset_state()
-            status_led.collision()
-            continue
+        #if collision.detect():
+        #    print("Collision Detected! Resetting...")      
+        #    reset_state()
+        #    status_led.collision()
+        #    continue
         if timeout_time and time.monotonic() - timeout_time < 0.5:
             continue
         else:
@@ -732,7 +725,7 @@ while True:
                     print("Stopping: Tower detected at next intersection")
                     stop_motors()
                     servo.angle = ARM_DOWN
-                    timeout_time = time.monotonic()
+                    
 
                 intersection_detected = False
                 next_step()
@@ -795,11 +788,14 @@ while True:
             send_sensor_values()
         else:
             stop_motors()
-            if websocket is not None:
+            if ( websocket is not None ) and not finished:
                 status_led.waiting_for_orders()
+            elif ( websocket is not None ) and finished:
+                status_led.finished()
 
-
-    if servo_active_time != None:
+    # Prioritize LED effects - only show one at a time
+    if servo_active_time is not None:
+        # Collection has highest priority
         status_led.collection()
         # The servo is activated to move up, if it has been in this 'up' state for longer than 1 second,
         # move the servo back down
@@ -808,6 +804,13 @@ while True:
             servo.angle = ARM_DOWN
     elif started:
         status_led.next_object()
+    elif finished:
+        # Finished state
+        status_led.finished()
+    elif websocket is None:
+        # No connection - loading animation
+        status_led.loading_animation()
+    # Other states are handled in the main logic above
 
     # Increment the poll counter
     poll_counter += 1
@@ -825,7 +828,8 @@ while True:
                 websocket.send_message(json.dumps(msg), fail_silently=True)
             poll_websocket()
         else:
-            status_led.loading_animation()
+            # Don't show loading animation here, it's handled in the LED priority section
+            pass
             
         # Reset counter after polling
         poll_counter = 0
