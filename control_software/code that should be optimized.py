@@ -305,6 +305,38 @@ def poll_websocket():
             pass
         websocket = None
 
+# Separate critical and non-critical websocket polling
+def poll_critical_websocket():
+    """Poll only for critical commands like stop and reset"""
+    global started, MANUAL_CONTROL, websocket, MANUAL_CONTROL_SPEEDS
+    
+    if websocket is None:
+        return
+
+    try:
+        data = websocket.receive(fail_silently=True)
+        if data is not None:
+            try:
+                data = json.loads(data)
+                
+                # Only process critical commands
+                if data["action"] == "stop":
+                    started = False
+                elif data["action"] == "reset":
+                    reset_state()
+                elif data["action"] == "enable_manual_control":
+                    started = False
+                    MANUAL_CONTROL = True
+                elif data["action"] == "disable_manual_control":
+                    started = False
+                    MANUAL_CONTROL = False
+                elif data["action"] == "manual_control_speeds" and MANUAL_CONTROL:
+                    MANUAL_CONTROL_SPEEDS = data["speeds"]
+            except (ValueError, KeyError) as e:
+                pass  # Silently ignore errors for speed
+    except Exception:
+        pass  # Silently ignore errors for speed
+
 
 server.start(port=PORT)
 print("Server started, open for websocket connection")
@@ -679,154 +711,132 @@ def check_for_intersection():
 
 
 # Main loop
-poll_counter = 0  # Counter for throttling polling operations
+poll_counter = 0
+led_counter = 0
+websocket_counter = 0
+
 while True:
-    if not calibrated: # This will calibrate the sensors when booting the car. Can be changed to when a connection has been established.
-        calibrate_all(False) # Does not try to send the new values to the frontend, connection probably still not established
-        calibrated = True
-        
-    # print(f"Sensor left: {L_overline.status()}")
-    # print(f"Sensor right: {R_overline.status()}")
-    # print(f"Sensor back: {B_overline.status()}")
-    if started == True:
-        
-        #if collision.detect():
-        #    print("Collision Detected! Resetting...")      
-        #    reset_state()
-        #    status_led.collision()
-        #    continue
+    # Always read sensors first - highest priority
+    left_status = L_overline.status()
+    right_status = R_overline.status()
+    back_status = B_overline.status()
+    
+    # Critical intersection detection
+    if left_status and right_status and not intersection_detected and started and steps[current_step] == "FORWARD":
+        intersection_detected = True
+        maybe_pickup()
+    
+    # Process driving logic
+    if started:
         if timeout_time and time.monotonic() - timeout_time < 0.5:
-            continue
+            pass  # Skip processing during timeout
         else:
             timeout_time = None
-
-        if steps[current_step] == "FORWARD":
-            # If the current step is moving forward, just follow the line until the next intersections
-            # Enhanced Intersection detection
-            check_for_intersection()
-
-            if (((B_overline.status() and intersection_detected) #or B_overline.status()
-                 ) and 
-                    time.monotonic() - time_since_next_step > 0.5):
-                # A intersection was detected and now we are at the intersection -> move to next step
-                # Only stop the motors if the path is finished or the next step is not FORWARD.
-                possible_next_step = get_next_step()
-                if possible_next_step == None or possible_next_step != "FORWARD":
-                    print("Stopping: End of path or next step is not FORWARD")
-                    stop_motors()
-
-                pickup_next_step = should_pickup_next_step()
-                if possible_next_step == "FORWARD" and pickup_next_step:
-                    print("Stopping: Tower detected at next intersection")
-                    stop_motors()
-                    servo.angle = ARM_DOWN
+            
+            if steps[current_step] == "FORWARD":
+                if back_status and intersection_detected and time.monotonic() - time_since_next_step > 0.5:
+                    # Process intersection detection
+                    possible_next_step = get_next_step()
+                    if possible_next_step == None or possible_next_step != "FORWARD":
+                        stop_motors()
                     
-
-                intersection_detected = False
-                next_step()
-            else:
-                # print("Follow line with PID-controller")
-                error = (
-                    L_overline.value() - R_overline.value()
-                ) / 65535.0  # Normalize between -1 and 1
-                error_sum += error  # Integral term
-                error_derivative = error - last_error  # Derivative term
-                last_error = error  # Save error for next loop
-
-                # Anti-windup: Limit integral term
-                MAX_INTEGRAL = 1.0
-                error_sum = max(-MAX_INTEGRAL, min(MAX_INTEGRAL, error_sum))
-
-                # Compute correction
-                correction = (Kp * error) + (Ki * error_sum) + (Kd * error_derivative)
-
-                # Adjust motor speeds
-                left_speed = int(BASE_SPEED + (correction * BASE_SPEED))
-                right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
-                # print(f"Left speed {left_speed} Right speed {right_speed}")
-                if intersection_detected:
-                   Motor_Left.run(left_speed * 0.7)
-                   Motor_Right.run(right_speed * 0.7) 
+                    pickup_next_step = should_pickup_next_step()
+                    if possible_next_step == "FORWARD" and pickup_next_step:
+                        stop_motors()
+                        servo.angle = ARM_DOWN
+                    
+                    intersection_detected = False
+                    next_step()
                 else:
-                    Motor_Left.run(left_speed)
-                    Motor_Right.run(right_speed)
+                    # Line following with PID
+                    error = (L_overline.value() - R_overline.value()) / 65535.0
+                    error_sum += error
+                    error_derivative = error - last_error
+                    last_error = error
                     
-
-
-        else:
-            # The robot is currently turning, wait until back on line before moving to next step
-            # To make sure the car actually turned 90 degrees, a minimum turning time is introduced (0.5s), this prevents the car
-            # from instantly going to the next step on turns(before actually starting the turn)
-            if steps[current_step] == "RIGHT":
-                turn_right()
-                # If the robot is turning right, it should stop turning once the right(TODO: left?) sensor hits the black line
-                if (
-                    ( R_overline.status() or L_overline.status() )
-                    and time.monotonic() - time_since_next_step > get_turning_delay()
-                ):
-                    stop_motors()
-                    next_step()
-            elif steps[current_step] == "LEFT":
-                turn_left()
-                # If the robot is turning left, it should stop turning once the left(TODO: right?) sensor hits the black line
-                if (
-                    ( L_overline.status() or R_overline.status() )
-                    and time.monotonic() - time_since_next_step > get_turning_delay()
-                ):
-                    stop_motors()
-                    next_step()
+                    # Anti-windup: Limit integral term
+                    MAX_INTEGRAL = 1.0
+                    error_sum = max(-MAX_INTEGRAL, min(MAX_INTEGRAL, error_sum))
+                    
+                    # Compute correction
+                    correction = (Kp * error) + (Ki * error_sum) + (Kd * error_derivative)
+                    
+                    # Adjust motor speeds
+                    left_speed = int(BASE_SPEED + (correction * BASE_SPEED))
+                    right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
+                    
+                    if intersection_detected:
+                        Motor_Left.run(left_speed * 0.7)
+                        Motor_Right.run(right_speed * 0.7)
+                    else:
+                        Motor_Left.run(left_speed)
+                        Motor_Right.run(right_speed)
+            else:
+                # Handle turning
+                if steps[current_step] == "RIGHT":
+                    turn_right()
+                    if (left_status or right_status) and time.monotonic() - time_since_next_step > get_turning_delay():
+                        stop_motors()
+                        next_step()
+                elif steps[current_step] == "LEFT":
+                    turn_left()
+                    if (left_status or right_status) and time.monotonic() - time_since_next_step > get_turning_delay():
+                        stop_motors()
+                        next_step()
     else:
+        # Non-started state handling
         if MANUAL_CONTROL:
             manual_control()
-            status_led.manual_control() 
+            status_led.manual_control()
         elif MONITORING_SENSOR:
             send_sensor_values()
         else:
             stop_motors()
-            if ( websocket is not None ) and not finished:
+            if (websocket is not None) and not finished:
                 status_led.waiting_for_orders()
-            elif ( websocket is not None ) and finished:
+            elif (websocket is not None) and finished:
                 status_led.finished()
-
-    # Prioritize LED effects - only show one at a time
-    if servo_active_time is not None:
-        # Collection has highest priority
-        status_led.collection()
-        # The servo is activated to move up, if it has been in this 'up' state for longer than 1 second,
-        # move the servo back down
-        if time.monotonic() - servo_active_time > 0.7:
-            servo_active_time = None
-            servo.angle = ARM_DOWN
-    elif started:
-        status_led.next_object()
-    elif finished:
-        # Finished state
-        status_led.finished()
-    elif websocket is None:
-        # No connection - loading animation
-        status_led.loading_animation()
-    # Other states are handled in the main logic above
-
-    # Increment the poll counter
-    poll_counter += 1
     
-    # Only poll the server and websocket every 20th iteration when started
-    # Always poll when not started to ensure responsive UI
-    if not started or poll_counter >= 20:
-        # Polling HTTP server
-        server.poll()
-
+    # Handle servo movement (non-blocking)
+    if servo_active_time is not None and time.monotonic() - servo_active_time > 0.7:
+        servo_active_time = None
+        servo.angle = ARM_DOWN
+    
+    # Update LEDs less frequently
+    led_counter += 1
+    if led_counter >= 10:  # Every 10 iterations
+        # Prioritize LED effects
+        if servo_active_time is not None:
+            status_led.collection()
+        elif len(green_towers) == 0 and started and not finished:
+            status_led.return_home()
+        elif started and not finished:
+            status_led.next_object()
+        elif finished:
+            status_led.finished()
+        elif websocket is None:
+            status_led.loading_animation()
+        led_counter = 0
+    
+    # Check critical websocket commands frequently
+    websocket_counter += 1
+    if websocket_counter >= 5:  # Every 5 iterations
         if websocket is not None:
-            # If there is a websocket connection, send all queued messages (setup data, ...)            
+            poll_critical_websocket()
+        websocket_counter = 0
+    
+    # Full websocket and server polling least frequently
+    poll_counter += 1
+    if poll_counter >= 20:  # Every 20 iterations
+        server.poll()
+        if websocket is not None:
+            # Process queued messages
             while len(message_queue) > 0:
                 msg = message_queue.pop(0)
                 websocket.send_message(json.dumps(msg), fail_silently=True)
-            poll_websocket()
-        else:
-            # Don't show loading animation here, it's handled in the LED priority section
-            pass
             
-        # Reset counter after polling
+            poll_websocket()
         poll_counter = 0
-
-
+    elif not started and websocket is not None:
+        # When not started, check for commands more frequently
+        poll_websocket() 
