@@ -16,6 +16,10 @@ L_overline = Sensors.Sensor(board.GP28, 12000)
 R_overline = Sensors.Sensor(board.GP27, 14000)
 B_overline = Sensors.Sensor(board.GP26, 10000)
 
+left_status = None
+right_status = None
+back_status = None
+
 # Calibration threshold
 L_R_calibration_threshold = 0.8
 B_calibration_threshold = 0.9
@@ -86,6 +90,7 @@ current_step = 0
 # This is required because when the front sensors detect the intersection,
 # the car should keep driving until the inteserction is reached
 intersection_detected = False
+
 
 # WiFi configuration
 SSID = "Fast Shitbox"
@@ -697,13 +702,14 @@ def get_turning_delay():
     return base_delay + speed_factor
 
 # Enhanced intersection detection with debouncing
-def check_for_intersection():
+def check_for_intersection(left_status = left_status, right_status = right_status):
+    """Enhanced intersection detection with debouncing"""
     global intersection_detected
     
     # Both front sensors on line indicates potential intersection
-    front_sensors_on_line = L_overline.status() and R_overline.status()
+    front_sensors_on_line = left_status and right_status
     
-    if front_sensors_on_line and not intersection_detected:
+    if front_sensors_on_line and not intersection_detected and started and steps[current_step] == "FORWARD":
         # Confirmed intersection after debounce period
         print("Front of car over intersection")
         intersection_detected = True
@@ -721,7 +727,8 @@ while True:
     right_status = R_overline.status()
     back_status = B_overline.status()
     
-    # Critical intersection detection
+    # Critical intersection detection - do this every iteration
+    check_for_intersection()
     if left_status and right_status and not intersection_detected and started and steps[current_step] == "FORWARD":
         intersection_detected = True
         maybe_pickup()
