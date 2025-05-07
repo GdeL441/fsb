@@ -339,17 +339,17 @@ def turn_left():
     # - Full speed until 400ms
     # - Linear ramp down from 400ms to 600ms (100% to 70%)
     # - 70% speed after 600ms
-    if turn_elapsed_time < 0.4:
+    if turn_elapsed_time < 0.9:
         # Full speed for first 400ms
         turn_speed = TURN_SPEED
-    elif turn_elapsed_time < 0.6:
+    elif turn_elapsed_time < 0.95:
         # Linear ramp down between 400ms and 600ms
         ramp_progress = (turn_elapsed_time - 0.4) / 0.2  # 0.0 to 1.0 over 200ms
         ramp_factor = 1.0 - (0.3 * ramp_progress)  # 1.0 to 0.7 over 200ms
         turn_speed = TURN_SPEED * ramp_factor
     else:
         # 70% speed after 600ms
-        turn_speed = TURN_SPEED * 0.7
+        turn_speed = TURN_SPEED * 0.8
     
     # Apply turn speeds
     Motor_Left.run(-turn_speed)
@@ -372,17 +372,17 @@ def turn_right():
     # - Full speed until 400ms
     # - Linear ramp down from 400ms to 600ms (100% to 70%)
     # - 70% speed after 600ms
-    if turn_elapsed_time < 0.4:
+    if turn_elapsed_time < 0.9:
         # Full speed for first 400ms
         turn_speed = TURN_SPEED
-    elif turn_elapsed_time < 0.6:
+    elif turn_elapsed_time < 0.95:
         # Linear ramp down between 400ms and 600ms
         ramp_progress = (turn_elapsed_time - 0.4) / 0.2  # 0.0 to 1.0 over 200ms
         ramp_factor = 1.0 - (0.3 * ramp_progress)  # 1.0 to 0.7 over 200ms
         turn_speed = TURN_SPEED * ramp_factor
     else:
         # 70% speed after 600ms
-        turn_speed = TURN_SPEED * 0.7
+        turn_speed = TURN_SPEED * 0.8
     
     # Apply turn speeds
     Motor_Left.run(turn_speed)
@@ -459,15 +459,14 @@ def maybe_pickup():
     robot_heading = current_heading
 
 def should_pickup_next_step():
-    global robot_pos, robot_heading, current_step, steps, green_towers
+    global robot_pos, robot_heading, current_step, steps, green_towers, servo_active_time
     
-    # Save current state
-    current_pos = robot_pos.copy()
-    current_heading = robot_heading
+    # If we're not currently picking up a tower, no need to stop
+    if servo_active_time is None:
+        return False
     
     # Check if we have a next step and it's FORWARD
     if current_step + 1 >= len(steps) or steps[current_step + 1] != "FORWARD":
-        # Restore state and return False if next step isn't FORWARD
         return False
     
     # Calculate position after completing the CURRENT step
@@ -492,20 +491,17 @@ def should_pickup_next_step():
     elif steps[current_step] == "RIGHT":
         # Turn right
         heading_after_current_step = DIRECTIONS[(DIRECTIONS.index(robot_heading) + 1) % 4]
-        # Position doesn't change after turning
         pos_after_current_step_x = robot_pos["x"]
         pos_after_current_step_y = robot_pos["y"]
     elif steps[current_step] == "LEFT":
         # Turn left
         heading_after_current_step = DIRECTIONS[(DIRECTIONS.index(robot_heading) - 1) % 4]
-        # Position doesn't change after turning
         pos_after_current_step_x = robot_pos["x"]
         pos_after_current_step_y = robot_pos["y"]
     else:
-        # Unknown step, return False
         return False
     
-    # Now calculate position after completing the NEXT step (which we know is FORWARD)
+    # Calculate position after completing the NEXT step
     if heading_after_current_step == "N":
         pos_after_next_step_y = pos_after_current_step_y + 1
         pos_after_next_step_x = pos_after_current_step_x
@@ -522,7 +518,7 @@ def should_pickup_next_step():
     # Check if there's a tower at the position after the NEXT step
     for tower in green_towers:
         if tower["x"] == pos_after_next_step_x and tower["y"] == pos_after_next_step_y:
-            print(f"Tower detected after next FORWARD step: x={pos_after_next_step_x}, y={pos_after_next_step_y}")
+            print(f"Tower detected after next FORWARD step while arm is active: x={pos_after_next_step_x}, y={pos_after_next_step_y}")
             return True
     
     return False
@@ -682,25 +678,20 @@ def get_turning_delay():
 
 # Enhanced intersection detection with debouncing
 def check_for_intersection():
-    global intersection_detected, intersection_detection_time
+    global intersection_detected
     
     # Both front sensors on line indicates potential intersection
     front_sensors_on_line = L_overline.status() and R_overline.status()
     
     if front_sensors_on_line and not intersection_detected:
-        if intersection_detection_time is None:
-            # Start timing how long both sensors are on the line
-            intersection_detection_time = time.monotonic()
-        elif time.monotonic() - intersection_detection_time > 0.002:  # 50ms debounce
             # Confirmed intersection after debounce period
             print("Front of car over intersection")
             intersection_detected = True
             maybe_pickup()  # Check if we need to pick up a tower
-    elif not front_sensors_on_line:
-        # Reset detection if sensors no longer detect line
-        intersection_detection_time = None
+
 
 # Main loop
+poll_counter = 0  # Counter for throttling polling operations
 while True:
     if not calibrated: # This will calibrate the sensors when booting the car. Can be changed to when a connection has been established.
         calibrate_all(False) # Does not try to send the new values to the frontend, connection probably still not established
@@ -726,8 +717,9 @@ while True:
             # Enhanced Intersection detection
             check_for_intersection()
 
-            if (((B_overline.status() and intersection_detected) or B_overline.status()) and 
-                    time.monotonic() - time_since_next_step > get_intersection_delay()):
+            if (((B_overline.status() and intersection_detected) #or B_overline.status()
+                 ) and 
+                    time.monotonic() - time_since_next_step > 0.5):
                 # A intersection was detected and now we are at the intersection -> move to next step
                 # Only stop the motors if the path is finished or the next step is not FORWARD.
                 possible_next_step = get_next_step()
@@ -778,6 +770,7 @@ while True:
             # To make sure the car actually turned 90 degrees, a minimum turning time is introduced (0.5s), this prevents the car
             # from instantly going to the next step on turns(before actually starting the turn)
             if steps[current_step] == "RIGHT":
+                turn_right()
                 # If the robot is turning right, it should stop turning once the right(TODO: left?) sensor hits the black line
                 if (
                     ( R_overline.status() or L_overline.status() )
@@ -786,6 +779,7 @@ while True:
                     stop_motors()
                     next_step()
             elif steps[current_step] == "LEFT":
+                turn_left()
                 # If the robot is turning left, it should stop turning once the left(TODO: right?) sensor hits the black line
                 if (
                     ( L_overline.status() or R_overline.status() )
@@ -815,16 +809,25 @@ while True:
     elif started:
         status_led.next_object()
 
-    # Polling HTTP server
-    server.poll()
+    # Increment the poll counter
+    poll_counter += 1
+    
+    # Only poll the server and websocket every 20th iteration when started
+    # Always poll when not started to ensure responsive UI
+    if not started or poll_counter >= 20:
+        # Polling HTTP server
+        server.poll()
 
-    if websocket is not None:
-        # If there is a websocket connection, send all queued messages (setup data, ...)            
-        while len(message_queue) > 0:
-            msg = message_queue.pop(0)
-            websocket.send_message(json.dumps(msg), fail_silently=True)
-        poll_websocket()
-    else:
-        status_led.loading_animation()
+        if websocket is not None:
+            # If there is a websocket connection, send all queued messages (setup data, ...)            
+            while len(message_queue) > 0:
+                msg = message_queue.pop(0)
+                websocket.send_message(json.dumps(msg), fail_silently=True)
+            poll_websocket()
+        else:
+            status_led.loading_animation()
+            
+        # Reset counter after polling
+        poll_counter = 0
 
 
