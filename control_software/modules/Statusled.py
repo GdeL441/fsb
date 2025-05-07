@@ -159,7 +159,7 @@ class Statusled:
         self.pixels.show()
 
 
-    def waiting_for_orders(self):
+    def finished(self):
         # Create a rotating rainbow effect
         t = time.monotonic()
         # Speed of rotation (complete rotation every 2 seconds)
@@ -235,6 +235,50 @@ class Statusled:
         # Ensure all pixels are lit at the end
         self.pixels.fill((0, 255, 255))
         self.pixels.show()
+    
+    def calibration_finished(self):
+        for _ in range(2):
+            time.sleep(0.1)
+            self.pixels.fill((0, 0, 0))
+            self.pixels.show()
+            time.sleep(0.1)
+            self.pixels.fill((0, 255, 255))
+            self.pixels.show()
+
+
+    def waiting_for_orders(self):
+        # Number of lit pixels in the spinning segment
+        segment_length = 5
+        
+        # Get current position based on time
+        t = time.monotonic()
+        # Speed of rotation (complete rotation every 1.5 seconds)
+        rotation_speed = 0.67  
+    
+        # Calculate the position of the first pixel in the segment
+        position = int((t * rotation_speed * self.NUM_PIXELS) % self.NUM_PIXELS)
+        
+        # Turn off all pixels first
+        self.pixels.fill((0, 0, 0))
+        
+        # Light up the segment with a gradient effect
+        for i in range(segment_length):
+            # Calculate pixel position with wraparound
+            pixel_pos = (position + i) % self.NUM_PIXELS
+        
+            # Create a gradient effect within the segment (brighter at the front)
+            brightness = 1.0 - (i / segment_length)
+        
+            # Set pixel color (white with gradient)
+            self.pixels[pixel_pos] = (
+                0,  # R
+                0,  # G
+                int(255 * brightness),  # B
+            )
+    
+        # Show the updated pixels
+        self.pixels.show()
+
 
 def smooth_sine(frequency):
     """

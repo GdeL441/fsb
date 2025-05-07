@@ -642,10 +642,11 @@ def calibrate_sensor(sensor):
     return threshold
 
 def calibrate_all(send = True):
+    status_led.calibration()
     r_threshold = calibrate_sensor(R_overline)
     l_threshold = calibrate_sensor(L_overline)
     b_threshold = calibrate_sensor(B_overline)
-    status_led.calibration()
+    status_led.calibration_finished()
     print("All sensors have been calibrated")
     
     # Send the new threshold values to the frontend
@@ -690,7 +691,7 @@ def check_for_intersection():
         if intersection_detection_time is None:
             # Start timing how long both sensors are on the line
             intersection_detection_time = time.monotonic()
-        elif time.monotonic() - intersection_detection_time > 0.05:  # 50ms debounce
+        elif time.monotonic() - intersection_detection_time > 0.002:  # 50ms debounce
             # Confirmed intersection after debounce period
             print("Front of car over intersection")
             intersection_detected = True
