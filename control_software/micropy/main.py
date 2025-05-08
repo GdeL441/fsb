@@ -207,8 +207,8 @@ async def ws(request, ws):
     if websocket is not None:
         try:
             await websocket.close()
-        except:
-            pass
+        except Exception as e:
+            print(f"Error closing previous websocket: {type(e).__name__}: {e}")
     
     # Store the websocket connection
     websocket = ws
@@ -216,20 +216,34 @@ async def ws(request, ws):
     # Use the thread-safe method to set LED state
     set_led_state("connected")
     
-    # After the connected animation completes, update the state
-    set_led_state("waiting_for_orders")
-    
     print("WebSocket client connected")
     
     # Send initial setup data
-    await send_setup_data()
+    try:
+        await send_setup_data()
+    except Exception as e:
+        print(f"Error sending setup data: {type(e).__name__}: {e}")
+    
+    # After the connected animation completes, update the state
+    set_led_state("waiting_for_orders")
     
     try:
         # Handle incoming messages
         while True:
-            data = await ws.receive()
-            if data:
-                await handle_websocket_message(data)
+            try:
+                data = await ws.receive()
+                if data:
+                    await handle_websocket_message(data)
+            except Exception as e:
+                print(f"Error receiving/handling message: {type(e).__name__}: {e}")
+                # For temporary errors, try to continue
+                if isinstance(e, (OSError, TimeoutError)) and e.errno in (110, 104, 32):  # Connection timeout/reset
+                    print("Connection temporarily lost, waiting...")
+                    #time.sleep(0.5)  # Wait a bit before retrying
+                    continue
+                else:
+                    # For other errors, exit the loop
+                    raise
     except Exception as e:
         print(f"WebSocket error: {type(e).__name__}: {e}")
     finally:
@@ -259,7 +273,8 @@ async def send_websocket_message(data, important=False):
         return True
     except Exception as e:
         print(f"Error sending message: {type(e).__name__}: {e}")
-        return True
+        # Don't clear websocket here - let the main handler decide if connection is lost
+        return False
 
 async def send_setup_data():
     """Send initial setup data to the client"""
