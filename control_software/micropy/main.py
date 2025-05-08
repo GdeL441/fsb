@@ -2,10 +2,10 @@ import time
 import json
 import machine
 from machine import Pin, PWM, ADC
-import usocket as socket
 import network
-from umodule import Motors, Sensors, Ultrasonic, Statusled
-from uselect import poll, POLLIN
+from modules import Motors, Sensors, Ultrasonic, Statusled
+from microdot import Microdot, Response, send_file
+from microdot.websocket import with_websocket
 
 # Initialize sensors
 # Using GP26, 27 and 28 (To be changed (NEW PCB))
@@ -26,7 +26,7 @@ Motor_Left = Motors.Motor(Pin(14), Pin(15))
 Motor_Right = Motors.Motor(Pin(17), Pin(16))
 
 # Initialize Ultrasonic, in cm
-collision = Ultrasonic.Collision(20, Pin(0), Pin(1))
+collision = Ultrasonic.Ultrasonic(machine.UART(0), 15)
 
 # Initialize servo motor
 servo_pwm = PWM(Pin(9))
@@ -86,30 +86,11 @@ steps = [
 current_step = 0
 intersection_detected = False
 
-# WiFi configuration
-SSID = "Fast Shitbox"
-PORT = 80
-
-# Setup WiFi AP
-ap = network.WLAN(network.AP_IF)
-ap.active(True)
-ap.config(essid=SSID)
-
-# Create socket
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind(('', PORT))
-s.listen(1)
-print("Server started on", ap.ifconfig()[0])
-
 # PID Constants for line following
 Kp = 1.5  # Proportional gain
 Ki = 0.01  # Integral gain
 Kd = 0.2  # Derivative gain
 
-# PID Constants for turning
-TURN_Kp = 2.0
-TURN_Ki = 0.05
-TURN_Kd = 0.5
 
 # Base Speed (100% = max = 1023 for PWM)
 BASE_SPEED = 30  # %
@@ -121,10 +102,97 @@ last_error = 0
 turn_error_sum = 0
 turn_last_error = 0
 
+# WiFi configuration
+SSID = "Fast Shitbox"
+PASSWORD = "password"
+PORT = 80
+
+# Setup WiFi AP
+ap = network.WLAN(network.AP_IF)
+ap.active(True)
+ap.config(essid=SSID, password=PASSWORD)
+print("Access point started")
+print("Network config:", ap.ifconfig())
+
 # WebSocket state
 websocket = None
 last_message_time = time.ticks_ms()
 MIN_MESSAGE_INTERVAL = 50  # ms
+
+# Create Microdot app
+app = Microdot()
+Response.default_content_type = 'text/html'
+
+# Serve static files
+@app.route('/')
+def index(request):
+    return send_file('static/index.html')
+
+@app.route('/static/<path:path>')
+def static(request, path):
+    return send_file('static/' + path)
+
+# Add an error handler for the Microdot app
+@app.errorhandler(Exception)
+def handle_exception(request, exception):
+    print(f"Server error: {type(exception).__name__}: {exception}")
+    return {"error": str(exception)}, 500
+
+# WebSocket route
+@app.route('/ws')
+@with_websocket
+async def ws(request, ws):
+    global websocket
+    
+    # Check if there's already an active connection and close it
+    if websocket is not None:
+        try:
+            await ws.close()
+        except:
+            pass
+    
+    # Store the websocket connection
+    websocket = ws
+    status_led.connected()
+    print("WebSocket client connected")
+    
+    # Send initial setup data
+    send_setup_data()
+    
+    try:
+        # Handle incoming messages
+        while True:
+            data = await ws.receive()
+            if data:
+                handle_websocket_message(data)
+    except Exception as e:
+        print(f"WebSocket error: {type(e).__name__}: {e}")
+    finally:
+        # Make sure to properly clean up the websocket variable when connection ends
+        if websocket == ws:  # Only clear if it's still the same connection
+            websocket = None
+            print("WebSocket client disconnected")
+
+def send_setup_data():
+    """Send initial setup data to the client"""
+    if websocket is None:
+        pass
+        
+    data = {
+        "action": "setup",
+        "L": L_overline.threshold,
+        "R": R_overline.threshold,
+        "B": B_overline.threshold,
+        "L_R_calibration_threshold": L_R_calibration_threshold,
+        "B_calibration_threshold": B_calibration_threshold,
+        "speed": BASE_SPEED,
+        "turnSpeed": TURN_SPEED,
+        "P": Kp,
+        "I": Ki,
+        "D": Kd
+    }
+    send_websocket_message(data, important=True)
+    print(f"Sent setup data: {data}")
 
 def send_websocket_message(data, important=False):
     global websocket, last_message_time
@@ -139,99 +207,89 @@ def send_websocket_message(data, important=False):
     
     try:
         json_data = json.dumps(data)
-        websocket.send(json_data.encode())
+        websocket.send(json_data)
         last_message_time = current_time
         return True
     except Exception as e:
         print("Error sending message:", e)
         return False
 
-def handle_client(conn):
-    global websocket, started, current_step, error_sum, last_error
+def handle_websocket_message(message):
+    global started, current_step, error_sum, last_error
     global MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, TURN_SPEED
     global steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS
     global green_towers, time_since_next_step, L_R_calibration_threshold, B_calibration_threshold
     
-    websocket = conn
-    status_led.connected()
-    
-    while True:
-        try:
-            data = conn.recv(1024)
-            if not data:
-                break
-                
-            data = json.loads(data.decode())
-            
-            if data["action"] == "start":
-                time_since_next_step = time.ticks_ms()
-                MANUAL_CONTROL = False
-                if all(key in data for key in ["path", "startX", "startY", "heading", "green_towers"]):
-                    steps = data["path"]
-                    robot_pos = {"x": data["startX"], "y": data["startY"]}
-                    robot_heading = data["heading"]
-                    green_towers = data["green_towers"]
+    try:
+        data = json.loads(message)
+        print("Received:", data)
+        
+        if data["action"] == "get_setup":
+            send_setup_data()
+        elif data["action"] == "start":
+            time_since_next_step = time.ticks_ms()
+            MANUAL_CONTROL = False
+            if all(key in data for key in ["path", "startX", "startY", "heading", "green_towers"]):
+                steps = data["path"]
+                robot_pos = {"x": data["startX"], "y": data["startY"]}
+                robot_heading = data["heading"]
+                green_towers = data["green_towers"]
 
-                if "thresholds" in data:
-                    L_overline.set_threshold(data["thresholds"]["L"])
-                    R_overline.set_threshold(data["thresholds"]["R"])
-                    B_overline.set_threshold(data["thresholds"]["B"])
+            if "thresholds" in data:
+                L_overline.set_threshold(data["thresholds"]["L"])
+                R_overline.set_threshold(data["thresholds"]["R"])
+                B_overline.set_threshold(data["thresholds"]["B"])
 
-                if "speed" in data:
-                    BASE_SPEED = max(min(100, data["speed"]), 0)
-                if "turnSpeed" in data:
-                    TURN_SPEED = max(min(100, data["turnSpeed"]), 0)
-
-                started = True
-                if len(steps) > 0:
-                    if steps[0] == "LEFT":
-                        turn_left()
-                    elif steps[0] == "RIGHT":
-                        turn_right()
-
-            elif data["action"] == "stop":
-                started = False
-            elif data["action"] == "reset":
-                reset_state()
-            elif data["action"] == "monitor_sensor":
-                MONITORING_SENSOR = not MONITORING_SENSOR
-            elif data["action"] == "set_threshold":
-                L_overline.set_threshold(data["L"])
-                R_overline.set_threshold(data["R"])
-                B_overline.set_threshold(data["B"])
-                L_R_calibration_threshold = data["L_R_calibration_threshold"]
-                B_calibration_threshold = data["B_calibration_threshold"]
-            elif data["action"] == "update_pid":
-                Kp = data["P"]
-                Ki = data["I"]
-                Kd = data["D"]
-            elif data["action"] == "update_speed":
+            if "speed" in data:
                 BASE_SPEED = max(min(100, data["speed"]), 0)
-                TURN_SPEED = max(min(100, data.get("turnSpeed", TURN_SPEED)), 0)
-            elif data["action"] == "disable_manual_control":
-                started = False
-                MANUAL_CONTROL = False
-            elif data["action"] == "enable_manual_control":
-                started = False
-                MANUAL_CONTROL = True
-            elif data["action"] == "manual_control_speeds":
-                if MANUAL_CONTROL:
-                    MANUAL_CONTROL_SPEEDS = data["speeds"]
-            elif data["action"] == "arm_up":
-                if MANUAL_CONTROL:
-                    set_servo_angle(ARM_UP)
-            elif data["action"] == "arm_down":
-                if MANUAL_CONTROL:
-                    set_servo_angle(ARM_DOWN)
-            elif data["action"] == "calibrate":
-                calibrate_all(True)
-                
-        except Exception as e:
-            print("Error handling client:", e)
-            break
-            
-    websocket = None
-    conn.close()
+            if "turnSpeed" in data:
+                TURN_SPEED = max(min(100, data["turnSpeed"]), 0)
+
+            started = True
+            if len(steps) > 0:
+                if steps[0] == "LEFT":
+                    turn_left()
+                elif steps[0] == "RIGHT":
+                    turn_right()
+
+        elif data["action"] == "stop":
+            started = False
+        elif data["action"] == "reset":
+            reset_state()
+        elif data["action"] == "monitor_sensor":
+            MONITORING_SENSOR = not MONITORING_SENSOR
+        elif data["action"] == "set_threshold":
+            L_overline.set_threshold(data["L"])
+            R_overline.set_threshold(data["R"])
+            B_overline.set_threshold(data["B"])
+            L_R_calibration_threshold = data["L_R_calibration_threshold"]
+            B_calibration_threshold = data["B_calibration_threshold"]
+        elif data["action"] == "update_pid":
+            Kp = data["P"]
+            Ki = data["I"]
+            Kd = data["D"]
+        elif data["action"] == "update_speed":
+            BASE_SPEED = max(min(100, data["speed"]), 0)
+            TURN_SPEED = max(min(100, data.get("turnSpeed", TURN_SPEED)), 0)
+        elif data["action"] == "disable_manual_control":
+            started = False
+            MANUAL_CONTROL = False
+        elif data["action"] == "enable_manual_control":
+            started = False
+            MANUAL_CONTROL = True
+        elif data["action"] == "manual_control_speeds":
+            if MANUAL_CONTROL:
+                MANUAL_CONTROL_SPEEDS = data["speeds"]
+        elif data["action"] == "arm_up":
+            if MANUAL_CONTROL:
+                set_servo_angle(ARM_UP)
+        elif data["action"] == "arm_down":
+            if MANUAL_CONTROL:
+                set_servo_angle(ARM_DOWN)
+        elif data["action"] == "calibrate":
+            calibrate_all(True)
+    except Exception as e:
+        print("Error handling WebSocket message:", e)
 
 def reset_state():
     global started, current_step, error_sum, last_error, intersection_detected
@@ -467,20 +525,30 @@ def check_for_intersection():
     if L_overline.status() and R_overline.status() and not intersection_detected:
         intersection_detected = True
         maybe_pickup()
+        
+# Start the Microdot server in a background task
+def start_server():
+    try:
+        app.run(host='0.0.0.0', port=PORT, debug=True)
+    except Exception as e:
+        print("Server error:", e)
+        machine.reset()  # Reset the device if the server crashes
 
-# Main loop
-poller = poll()
-poller.register(s, POLLIN)
+import _thread
+_thread.start_new_thread(start_server, ())
 
-poll_counter = 0
-activity_counter = False
-
+# Main control loop
 while True:
     if not calibrated:
         calibrate_all(False)
         calibrated = True
 
     if started:
+        if collision.detect():
+            print("Collision Detected! Resetting...")
+            status_led.collision()
+            reset_state()
+
         check_for_intersection()
 
         if timeout_time and time.ticks_diff(time.ticks_ms(), timeout_time) < 500:
@@ -525,13 +593,13 @@ while True:
         else:
             if steps[current_step] == "RIGHT":
                 turn_right()
-                if (R_overline.status() and 
-                    time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000):
+                if ( (R_overline.status() or L_overline.status() ) and  
+                    ( time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000) ):
                     stop_motors()
                     next_step()
             elif steps[current_step] == "LEFT":
                 turn_left()
-                if (L_overline.status() and 
+                if ( (L_overline.status() or R_overline.status() ) and 
                     time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000):
                     stop_motors()
                     next_step()
@@ -560,19 +628,5 @@ while True:
     elif websocket is None:
         status_led.loading_animation()
 
-    poll_counter += 1
-    
-    if not started or poll_counter >= 10:
-        if activity_counter:
-            activity_counter = False
-            if started and collision.detect():
-                reset_state()
-                status_led.collision()
-        else:
-            activity_counter = True
-            # Check for new connections
-            if poller.poll(0):
-                conn, addr = s.accept()
-                handle_client(conn)
-                
-        poll_counter = 0
+    # Small delay to prevent CPU hogging
+    time.sleep(0.01)
