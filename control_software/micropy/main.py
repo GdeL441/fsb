@@ -182,15 +182,6 @@ MIN_MESSAGE_INTERVAL = 50  # ms
 app = Microdot()
 Response.default_content_type = 'text/html'
 
-# Serve static files
-@app.route('/')
-def index(request):
-    return send_file('static/index.html')
-
-@app.route('/static/<path:path>')
-def static(request, path):
-    return send_file('static/' + path)
-
 # Add an error handler for the Microdot app
 @app.errorhandler(Exception)
 def handle_exception(request, exception):
@@ -570,7 +561,7 @@ async def next_step():
 
 async def pickup():
     global servo_active_time, timeout_time
-    timeout_time = time.ticks_ms()
+    #timeout_time = time.ticks_ms()
     set_servo_angle(ARM_UP)
     servo_active_time = time.ticks_ms()
     
