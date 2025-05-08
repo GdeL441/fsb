@@ -208,12 +208,17 @@ async def ws(request, ws):
         try:
             await websocket.close()
         except:
-            print("failed to close websocket")
             pass
     
     # Store the websocket connection
     websocket = ws
-    status_led.connected()
+    
+    # Use the thread-safe method to set LED state
+    set_led_state("connected")
+    
+    # After the connected animation completes, update the state
+    set_led_state("waiting_for_orders")
+    
     print("WebSocket client connected")
     
     # Send initial setup data
@@ -232,6 +237,8 @@ async def ws(request, ws):
         if websocket == ws:  # Only clear if it's still the same connection
             websocket = None
             print("WebSocket client disconnected")
+            # Update LED state when disconnected
+            set_led_state("loading_animation")
 
 async def send_websocket_message(data, important=False):
     global websocket, last_message_time
@@ -252,7 +259,7 @@ async def send_websocket_message(data, important=False):
         return True
     except Exception as e:
         print(f"Error sending message: {type(e).__name__}: {e}")
-        return False
+        return True
 
 async def send_setup_data():
     """Send initial setup data to the client"""
@@ -368,6 +375,12 @@ def reset_state():
     servo_active_time = None
     set_servo_angle(ARM_DOWN)
     finished = False
+    
+    # Update LED state
+    if websocket is not None:
+        set_led_state("waiting_for_orders")
+    else:
+        set_led_state("loading_animation")
 
 def turn_left():
     global time_since_next_step, last_error, error_sum
@@ -376,10 +389,10 @@ def turn_left():
     
     turn_elapsed_time = time.ticks_diff(time.ticks_ms(), time_since_next_step) / 1000
     
-    if turn_elapsed_time < 0.5:
-        turn_speed = TURN_SPEED
+    if turn_elapsed_time < 0.15:
+        turn_speed = 100
     else:
-        turn_speed = TURN_SPEED * 0.8
+        turn_speed = TURN_SPEED
     
     Motor_Left.run(-turn_speed)
     Motor_Right.run(turn_speed)
@@ -391,10 +404,10 @@ def turn_right():
     
     turn_elapsed_time = time.ticks_diff(time.ticks_ms(), time_since_next_step) / 1000
     
-    if turn_elapsed_time < 0.5:
-        turn_speed = TURN_SPEED
+    if turn_elapsed_time < 0.15:
+        turn_speed = 100
     else:
-        turn_speed = TURN_SPEED * 0.8
+        turn_speed = TURN_SPEED
     
     Motor_Left.run(turn_speed)
     Motor_Right.run(-turn_speed)
@@ -570,11 +583,15 @@ def manual_control():
         status_led.reverse()
 
 async def calibrate_all(send=True):
+    set_led_state("calibration")
     status_led.calibration()
     r_threshold = R_overline.calibrate(L_R_calibration_threshold)
     l_threshold = L_overline.calibrate(L_R_calibration_threshold)
     b_threshold = B_overline.calibrate(B_calibration_threshold)
     status_led.calibration_finished()
+    
+    # Reset LED state after calibration
+    set_led_state(None)
     
     if send:
         data = {
@@ -590,10 +607,10 @@ async def calibrate_all(send=True):
         await send_websocket_message(data, important=True)
 
 def get_intersection_delay():
-    return 0.1 + (1.0 - (BASE_SPEED / 100.0)) * 0.4
+    return  (1.0 - (BASE_SPEED / 100.0)) * 0.4
 
 def get_turning_delay():
-    return 0.1 + (1.0 - (TURN_SPEED / 100.0)) * 0.4
+    return (1.0 - (TURN_SPEED / 100.0)) * 0.4
 
 def check_for_intersection():
     global intersection_detected
@@ -610,7 +627,20 @@ def start_server():
         print("Server error:", e)
         machine.reset()  # Reset the device if the server crashes
 
+# Start the server in a new thread
+_thread.stack_size(10240)
 _thread.start_new_thread(start_server, ())
+
+# Add a global variable to track the current LED state
+led_state = None
+led_lock = _thread.allocate_lock()  # Lock for thread-safe access to LED state
+
+def set_led_state(state):
+    """Thread-safe way to set the LED state"""
+    global led_state
+    with led_lock:
+        led_state = state
+        return led_state
 
 # Main control loop
 while True:
@@ -621,6 +651,40 @@ while True:
         schedule_async(calibrate_all, False)
         calibrated = True
 
+    # Determine the appropriate LED state based on current conditions
+    current_led_state = None
+    
+    if servo_active_time is not None:
+        current_led_state = "collection"
+    elif started:
+        current_led_state = "next_object"
+    elif finished:
+        current_led_state = "finished"
+    elif MANUAL_CONTROL:
+        current_led_state = "manual_control"
+    elif websocket is not None and not finished:
+        current_led_state = "waiting_for_orders"
+    elif websocket is None:
+        current_led_state = "loading_animation"
+        
+    # Only update the LED state if it has changed
+    if current_led_state != led_state:
+        set_led_state(current_led_state)
+        
+    # Always update the LED animation based on the current state
+    if led_state == "collection":
+        status_led.collection()
+    elif led_state == "next_object":
+        status_led.next_object()
+    elif led_state == "finished":
+        status_led.finished()
+    elif led_state == "manual_control":
+        status_led.manual_control()
+    elif led_state == "waiting_for_orders":
+        status_led.waiting_for_orders()
+    elif led_state == "loading_animation":
+        status_led.loading_animation()
+    
     if started:
         if collision.detect():
             print("Collision Detected! Resetting...")
@@ -684,27 +748,15 @@ while True:
     else:
         if MANUAL_CONTROL:
             manual_control()
-            status_led.manual_control()
         elif MONITORING_SENSOR:
             schedule_async(send_sensor_values)
         else:
             stop_motors()
-            if websocket is not None and not finished:
-                status_led.waiting_for_orders()
-            elif websocket is not None and finished:
-                status_led.finished()
-
-    if servo_active_time is not None:
-        status_led.collection()
-        if time.ticks_diff(time.ticks_ms(), servo_active_time) > 700:
-            servo_active_time = None
-            set_servo_angle(ARM_DOWN)
-    elif started:
-        status_led.next_object()
-    elif finished:
-        status_led.finished()
-    elif websocket is None:
-        status_led.loading_animation()
-
+    
+    # Handle servo timeout
+    if servo_active_time is not None and time.ticks_diff(time.ticks_ms(), servo_active_time) > 700:
+        servo_active_time = None
+        set_servo_angle(ARM_DOWN)
+    
     # Small delay to prevent CPU hogging
-    time.sleep(0.01)
+
