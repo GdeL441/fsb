@@ -6,6 +6,65 @@ import network
 from modules import Motors, Sensors, Ultrasonic, Statusled
 from microdot import Microdot, Response, send_file
 from microdot.websocket import with_websocket
+import asyncio
+import _thread
+
+# Simple Queue implementation for MicroPython
+class Queue:
+    def __init__(self, maxsize=10):
+        self.items = []
+        self.maxsize = maxsize
+    
+    def put(self, item, block=True):
+        if len(self.items) >= self.maxsize:
+            if block:
+                # In a real implementation, this would wait
+                # but for simplicity, we'll just raise an exception
+                raise Exception("Queue full")
+            else:
+                raise queue.Full()
+        self.items.append(item)
+    
+    def get(self, block=True):
+        if not self.items:
+            if block:
+                # In a real implementation, this would wait
+                # but for simplicity, we'll just raise an exception
+                raise Exception("Queue empty")
+            else:
+                raise queue.Empty()
+        return self.items.pop(0)
+    
+    def empty(self):
+        return len(self.items) == 0
+
+# Define exception classes for queue
+class queue:
+    class Full(Exception):
+        pass
+    
+    class Empty(Exception):
+        pass
+
+# Create a queue for async operations that need to be executed from the main loop
+# Queue for async operations
+async_queue = Queue(10)
+
+# Function to process async operations from the main loop
+def process_async_queue():
+    try:
+        while not async_queue.empty():
+            coro, args = async_queue.get(False)
+            asyncio.run(coro(*args))
+    except Exception as e:
+        print(f"Error processing async queue: {type(e).__name__}: {e}")
+
+# Helper function to add async operations to the queue
+def schedule_async(coro, *args):
+    try:
+        async_queue.put((coro, args), False)
+    except queue.Full:
+        print("Async queue full, operation dropped")
 
 # Initialize sensors
 # Using GP26, 27 and 28 (To be changed (NEW PCB))
@@ -46,7 +105,7 @@ timeout_time = None
 started = False
 
 # Add servo constants:
-ARM_DOWN = 175
+ARM_DOWN = 172
 ARM_UP = 10
 
 # Keep track if first calibration has been done.
@@ -147,8 +206,9 @@ async def ws(request, ws):
     # Check if there's already an active connection and close it
     if websocket is not None:
         try:
-            await ws.close()
+            await websocket.close()
         except:
+            print("failed to close websocket")
             pass
     
     # Store the websocket connection
@@ -157,14 +217,14 @@ async def ws(request, ws):
     print("WebSocket client connected")
     
     # Send initial setup data
-    send_setup_data()
+    await send_setup_data()
     
     try:
         # Handle incoming messages
         while True:
             data = await ws.receive()
             if data:
-                handle_websocket_message(data)
+                await handle_websocket_message(data)
     except Exception as e:
         print(f"WebSocket error: {type(e).__name__}: {e}")
     finally:
@@ -173,10 +233,31 @@ async def ws(request, ws):
             websocket = None
             print("WebSocket client disconnected")
 
-def send_setup_data():
+async def send_websocket_message(data, important=False):
+    global websocket, last_message_time
+    
+    if websocket is None:
+        return False
+    
+    current_time = time.ticks_ms()
+    
+    if not important and (time.ticks_diff(current_time, last_message_time) < MIN_MESSAGE_INTERVAL):
+        return False
+    
+    try:
+        json_data = json.dumps(data)
+        await websocket.send(json_data)
+        print(f"Sent: {json_data}")
+        last_message_time = current_time
+        return True
+    except Exception as e:
+        print(f"Error sending message: {type(e).__name__}: {e}")
+        return False
+
+async def send_setup_data():
     """Send initial setup data to the client"""
     if websocket is None:
-        pass
+        return
         
     data = {
         "action": "setup",
@@ -191,31 +272,10 @@ def send_setup_data():
         "I": Ki,
         "D": Kd
     }
-    send_websocket_message(data, important=True)
+    await send_websocket_message(data, important=True)
     print(f"Sent setup data: {data}")
 
-def send_websocket_message(data, important=False):
-    global websocket, last_message_time
-    
-    if websocket is None:
-        return False
-    
-    current_time = time.ticks_ms()
-    
-    if not important and (current_time - last_message_time < MIN_MESSAGE_INTERVAL):
-        return False
-    
-    try:
-        json_data = json.dumps(data)
-        websocket.send(json_data)
-        print("Sent:", json_data)
-        last_message_time = current_time
-        return True
-    except Exception as e:
-        print("Error sending message:", e)
-        return False
-
-def handle_websocket_message(message):
+async def handle_websocket_message(message):
     global started, current_step, error_sum, last_error
     global MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, TURN_SPEED
     global steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS
@@ -223,10 +283,10 @@ def handle_websocket_message(message):
     
     try:
         data = json.loads(message)
-        print("Received:", data)
+        print(f"Received: {data}")
         
         if data["action"] == "get_setup":
-            send_setup_data()
+            await send_setup_data()
         elif data["action"] == "start":
             time_since_next_step = time.ticks_ms()
             MANUAL_CONTROL = False
@@ -288,9 +348,9 @@ def handle_websocket_message(message):
             if MANUAL_CONTROL:
                 set_servo_angle(ARM_DOWN)
         elif data["action"] == "calibrate":
-            calibrate_all(True)
+            await calibrate_all(True)
     except Exception as e:
-        print("Error handling WebSocket message:", e)
+        print(f"Error handling WebSocket message: {type(e).__name__}: {e}")
 
 def reset_state():
     global started, current_step, error_sum, last_error, intersection_detected
@@ -343,7 +403,7 @@ def stop_motors():
     Motor_Right.stop()
     Motor_Left.stop()
 
-def update_pos_and_heading(send=True):
+async def update_pos_and_heading(send=True):
     global robot_pos, robot_heading
 
     if steps[current_step] == "FORWARD":
@@ -366,7 +426,7 @@ def update_pos_and_heading(send=True):
             "position": robot_pos,
             "heading": robot_heading,
         }
-        send_websocket_message(data, important=True)
+        await send_websocket_message(data, important=True)
 
 def get_next_step():
     if current_step + 1 == len(steps):
@@ -378,15 +438,30 @@ def maybe_pickup():
     current_pos = robot_pos.copy()
     current_heading = robot_heading
 
-    update_pos_and_heading(False)
+    # Calculate the next position without actually updating the global variables
+    # This replaces the call to update_pos_and_heading(False)
+    next_pos = {"x": robot_pos["x"], "y": robot_pos["y"]}
+    next_heading = robot_heading
+    
+    if steps[current_step] == "FORWARD":
+        if robot_heading == "N":
+            next_pos["y"] += 1
+        elif robot_heading == "S":
+            next_pos["y"] -= 1
+        elif robot_heading == "E":
+            next_pos["x"] += 1
+        elif robot_heading == "W":
+            next_pos["x"] -= 1
+    elif steps[current_step] == "RIGHT":
+        next_heading = DIRECTIONS[(DIRECTIONS.index(robot_heading) + 1) % 4]
+    elif steps[current_step] == "LEFT":
+        next_heading = DIRECTIONS[(DIRECTIONS.index(robot_heading) - 1) % 4]
 
-    tower = next((t for t in green_towers if t["x"] == robot_pos["x"] and t["y"] == robot_pos["y"]), None)
+    # Check if there's a tower at the calculated next position
+    tower = next((t for t in green_towers if t["x"] == next_pos["x"] and t["y"] == next_pos["y"]), None)
     if tower is not None:
-        pickup()
+        schedule_async(pickup)
         green_towers.remove(tower)
-
-    robot_pos = current_pos
-    robot_heading = current_heading
 
 def should_pickup_next_step():
     global robot_pos, robot_heading, current_step, steps, green_towers, servo_active_time
@@ -442,10 +517,10 @@ def should_pickup_next_step():
     
     return any(t["x"] == final_x and t["y"] == final_y for t in green_towers)
 
-def next_step():
+async def next_step():
     global current_step, started, time_since_next_step, intersection_detected, finished
 
-    update_pos_and_heading()
+    await update_pos_and_heading()
 
     current_step += 1
     time_since_next_step = time.ticks_ms()
@@ -454,7 +529,7 @@ def next_step():
         reset_state()
         data = {"action": "finished"}
         finished = True
-        send_websocket_message(data, important=True)
+        await send_websocket_message(data, important=True)
         return
     else:
         if steps[current_step] == "LEFT":
@@ -463,9 +538,9 @@ def next_step():
             turn_right()
 
     data = {"action": "next_step", "step": steps[current_step]}
-    send_websocket_message(data, important=True)
+    await send_websocket_message(data, important=True)
 
-def pickup():
+async def pickup():
     global servo_active_time, timeout_time
     timeout_time = time.ticks_ms()
     set_servo_angle(ARM_UP)
@@ -476,16 +551,16 @@ def pickup():
         "position": robot_pos,
         "remaining_towers": len(green_towers)
     }
-    send_websocket_message(data, important=True)
+    await send_websocket_message(data, important=True)
 
-def send_sensor_values():
+async def send_sensor_values():
     data = {
         "action": "sensor_values",
         "L": L_overline.value(),
         "R": R_overline.value(),
         "B": B_overline.value(),
     }
-    send_websocket_message(data)
+    await send_websocket_message(data)
 
 def manual_control():
     left, right = MANUAL_CONTROL_SPEEDS["left"], MANUAL_CONTROL_SPEEDS["right"]
@@ -494,7 +569,7 @@ def manual_control():
     if left < 0 and right < 0:
         status_led.reverse()
 
-def calibrate_all(send=True):
+async def calibrate_all(send=True):
     status_led.calibration()
     r_threshold = R_overline.calibrate(L_R_calibration_threshold)
     l_threshold = L_overline.calibrate(L_R_calibration_threshold)
@@ -512,7 +587,7 @@ def calibrate_all(send=True):
                 "B_calibration_threshold": B_calibration_threshold
             }
         }
-        send_websocket_message(data, important=True)
+        await send_websocket_message(data, important=True)
 
 def get_intersection_delay():
     return 0.1 + (1.0 - (BASE_SPEED / 100.0)) * 0.4
@@ -526,7 +601,7 @@ def check_for_intersection():
     if L_overline.status() and R_overline.status() and not intersection_detected:
         intersection_detected = True
         maybe_pickup()
-        
+
 # Start the Microdot server in a background task
 def start_server():
     try:
@@ -535,13 +610,15 @@ def start_server():
         print("Server error:", e)
         machine.reset()  # Reset the device if the server crashes
 
-import _thread
 _thread.start_new_thread(start_server, ())
 
 # Main control loop
 while True:
+    # Process any pending async operations
+    process_async_queue()
+    
     if not calibrated:
-        calibrate_all(False)
+        schedule_async(calibrate_all, False)
         calibrated = True
 
     if started:
@@ -570,7 +647,7 @@ while True:
                     set_servo_angle(ARM_DOWN)
 
                 intersection_detected = False
-                next_step()
+                schedule_async(next_step)
             else:
                 error = (L_overline.value() - R_overline.value()) / 65535.0
                 error_sum += error
@@ -597,19 +674,19 @@ while True:
                 if ( (R_overline.status() or L_overline.status() ) and  
                     ( time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000) ):
                     stop_motors()
-                    next_step()
+                    schedule_async(next_step)
             elif steps[current_step] == "LEFT":
                 turn_left()
                 if ( (L_overline.status() or R_overline.status() ) and 
                     time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000):
                     stop_motors()
-                    next_step()
+                    schedule_async(next_step)
     else:
         if MANUAL_CONTROL:
             manual_control()
             status_led.manual_control()
         elif MONITORING_SENSOR:
-            send_sensor_values()
+            schedule_async(send_sensor_values)
         else:
             stop_motors()
             if websocket is not None and not finished:
