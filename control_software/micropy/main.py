@@ -208,6 +208,7 @@ def send_websocket_message(data, important=False):
     try:
         json_data = json.dumps(data)
         websocket.send(json_data)
+        print("Sent:", json_data)
         last_message_time = current_time
         return True
     except Exception as e:
@@ -318,7 +319,7 @@ def turn_left():
     if turn_elapsed_time < 0.5:
         turn_speed = TURN_SPEED
     else:
-        turn_speed = TURN_SPEED * 0.7
+        turn_speed = TURN_SPEED * 0.8
     
     Motor_Left.run(-turn_speed)
     Motor_Right.run(turn_speed)
@@ -333,7 +334,7 @@ def turn_right():
     if turn_elapsed_time < 0.5:
         turn_speed = TURN_SPEED
     else:
-        turn_speed = TURN_SPEED * 0.7
+        turn_speed = TURN_SPEED * 0.8
     
     Motor_Left.run(turn_speed)
     Motor_Right.run(-turn_speed)
