@@ -712,7 +712,6 @@ while True:
                     stop_motors()
                     servo.angle = ARM_DOWN
                     
-
                 intersection_detected = False
                 next_step()
             else:
@@ -791,7 +790,10 @@ while True:
             servo_active_time = None
             servo.angle = ARM_DOWN
     elif started:
-        status_led.next_object()
+        if len(green_towers) == 0:
+            status_led.return_home()
+        else:
+            status_led.next_object()
     elif finished:
         # Finished state
         status_led.finished()
