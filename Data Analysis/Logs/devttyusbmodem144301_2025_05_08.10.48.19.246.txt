@@ -1,0 +1,11 @@
+All sensors have been calibrated
+]0;🐍Wi-Fi: No IP | Done | 9.2.7\
+Code stopped by auto-reload. Reloading soon.
+soft reboot
+
+[2K[0GAuto-reload is on. Simply save files over USB to run them or enter REPL to disable.
+[2K[0Gcode.py output:
+]0;🐍Wi-Fi: off | code.py | 9.2.7\My IP address is 192.168.4.1
+Started development server on http://0.0.0.0:80
+Server started, open for websocket connection
+All sensors have been calibrated

@@ -28,7 +28,7 @@ Motor_Left = Motors.Motor(board.GP14, board.GP15)
 Motor_Right = Motors.Motor(board.GP17, board.GP16)
 
 # Initialize Ultrasonic, in cm
-#collision = Ultrasonic.Collision(10, board.GP0, board.GP1)
+collision = Ultrasonic.Collision(20, board.GP0, board.GP1)
 
 # Initialize servo motor
 servo = servo.Servo(
@@ -99,7 +99,7 @@ server = Server(pool, "/static", debug=True)
 websocket = None
 message_queue = []
 
-# print IP adres
+# Give IP adres
 print("My IP address is", wifi.radio.ipv4_address_ap)
 
 # PID Constants for line following
@@ -333,7 +333,9 @@ def reset_state():
 # Turn the robot to the left with a given speed, used on intersection.
 # Defaults to turn_speed
 def turn_left():
-    global time_since_next_step
+    global time_since_next_step, last_error, error_sum
+    last_error = 0
+    error_sum = 0
     
     
     # Calculate time since turn started
@@ -343,18 +345,13 @@ def turn_left():
     # - Full speed until 400ms
     # - Linear ramp down from 400ms to 600ms (100% to 70%)
     # - 70% speed after 600ms
-    if turn_elapsed_time < 0.6:
+    if turn_elapsed_time < 0.5:
         # Full speed for first 400ms
         # turn_speed = TURN_SPEED
-        turn_speed = 100
-    elif turn_elapsed_time < 0.95:
-        # Linear ramp down between 400ms and 600ms
-        ramp_progress = (turn_elapsed_time - 0.4) / 0.2  # 0.0 to 1.0 over 200ms
-        ramp_factor = 1.0 - (0.3 * ramp_progress)  # 1.0 to 0.7 over 200ms
-        turn_speed = TURN_SPEED * ramp_factor
+        turn_speed = TURN_SPEED
     else:
         # 70% speed after 600ms
-        turn_speed = TURN_SPEED * 0.8
+        turn_speed = TURN_SPEED * 0.7
     
     # Apply turn speeds
     Motor_Left.run(-turn_speed)
@@ -364,8 +361,9 @@ def turn_left():
 # Turn the robot to the right with a given speed, used on intersection.
 # Defaults to turn_speed
 def turn_right():
-    global time_since_next_step 
-    
+    global time_since_next_step, last_error, error_sum
+    last_error = 0
+    error_sum = 0
     # Calculate time since turn started
     turn_elapsed_time = time.monotonic() - time_since_next_step
     
@@ -373,18 +371,13 @@ def turn_right():
     # - Full speed until 800ms
     # - Linear ramp down from 900ms to 1100ms (100% to 80%)
     # - 80% speed after 1100ms
-    if turn_elapsed_time < 0.6:
+    if turn_elapsed_time < 0.5:
         # Full speed for first 400ms
         # turn_speed = TURN_SPEED
-        turn_speed = 100
-    elif turn_elapsed_time < 0.95:
-        # Linear ramp down between 900ms and 1100ms
-        ramp_progress = (turn_elapsed_time - 0.4) / 0.2  # 0.0 to 1.0 over 200ms
-        ramp_factor = 1.0 - (0.3 * ramp_progress)  # 1.0 to 0.8 over 200ms
-        turn_speed = TURN_SPEED * ramp_factor
+        turn_speed = TURN_SPEED
     else:
-        # 80% speed after 1100ms
-        turn_speed = TURN_SPEED * 0.8
+        # 70% speed after 600ms
+        turn_speed = TURN_SPEED * 0.7
     
     # Apply turn speeds
     Motor_Left.run(turn_speed)
@@ -426,7 +419,7 @@ def update_pos_and_heading(send=True):
             "position": robot_pos,
             "heading": robot_heading,
         }
-        print("update pos and heading after", robot_pos, robot_heading, steps[current_step])
+        #print("update pos and heading after", robot_pos, robot_heading, steps[current_step])
         
         # Position updates are important
         send_websocket_message(data, important=True)
@@ -450,7 +443,7 @@ def maybe_pickup():
         green_towers, lambda t: t["x"] == robot_pos["x"] and t["y"] == robot_pos["y"]
     )
     if tower != None:
-        print("Pick up item with servo arm")
+        #print("Pick up item with servo arm")
         pickup()
         green_towers.remove(tower)
 
@@ -517,7 +510,7 @@ def should_pickup_next_step():
     # Check if there's a tower at the position after the NEXT step
     for tower in green_towers:
         if tower["x"] == pos_after_next_step_x and tower["y"] == pos_after_next_step_y:
-            print(f"Tower detected after next FORWARD step while arm is active: x={pos_after_next_step_x}, y={pos_after_next_step_y}")
+            #print(f"Tower detected after next FORWARD step while arm is active: x={pos_after_next_step_x}, y={pos_after_next_step_y}")
             return True
     
     return False
@@ -582,12 +575,6 @@ def pickup():
     send_websocket_message(data, important=True)
 
 
-# Convert duty_cycle (0-65535) to % speeds (0-100)
-# def duty_cycle_to_speed(duty_cycle):
-#     speed = (duty_cycle * 100) / 65535  # Convert duty cycle back to percentage
-#     return speed
-
-
 # Used for calibrating the LDRs from the app. Only in monitoring mode.
 def send_sensor_values():
     assert MONITORING_SENSOR
@@ -649,7 +636,7 @@ def calibrate_all(send = True):
 def get_intersection_delay():
     """Calculate appropriate delay for intersection detection based on speed"""
     # Base delay + speed factor + adjustment for battery level
-    base_delay = 0.3  # Minimum delay
+    base_delay = 0.1  # Minimum delay
     speed_factor = (1.0 - (BASE_SPEED / 100.0)) * 0.4  # Speed adjustment (0-0.4s)
     
     # Shorter delay at higher speeds, longer at lower speeds
@@ -658,7 +645,7 @@ def get_intersection_delay():
 def get_turning_delay():
     """Calculate appropriate delay for turning based on speed"""
     # Base delay + speed factor
-    base_delay = 0.3  # Minimum delay
+    base_delay = 0.1  # Minimum delay
     speed_factor = (1.0 - (TURN_SPEED / 100.0)) * 0.4  # Speed adjustment (0-0.4s)
     
     # Shorter delay at higher speeds, longer at lower speeds
@@ -673,34 +660,38 @@ def check_for_intersection():
     
     if front_sensors_on_line and not intersection_detected:
         # Confirmed intersection after debounce period
-        print("Front of car over intersection")
+        #print("Front of car over intersection")
         intersection_detected = True
         maybe_pickup()  # Check if we need to pick up a tower
 
 
 # Main loop
-poll_counter = 0  # Counter for throttling polling operations
+poll_counter = 0
+activity_counter = False  # Counter for throttling polling operations
 while True:
+
     if not calibrated: # This will calibrate the sensors when booting the car. Can be changed to when a connection has been established.
         calibrate_all(False) # Does not try to send the new values to the frontend, connection probably still not established
         calibrated = True
         
-    # print(f"Sensor left: {L_overline.status()}")
-    # print(f"Sensor right: {R_overline.status()}")
-    # print(f"Sensor back: {B_overline.status()}")
+
     if started == True:
-        
-        #if collision.detect():
-        #    print("Collision Detected! Resetting...")      
-        #    reset_state()
-        #    status_led.collision()
-        #    continue
+        #print(f"Sensor left: {L_overline.value()}")
+        #print(f"Sensor right: {R_overline.value()}")
+        #print(f"Sensor back: {B_overline.value()}")
+
+
+        #print(f"Time since boot:{time.monotonic()}")
+
         if timeout_time and time.monotonic() - timeout_time < 0.5:
             continue
         else:
             timeout_time = None
 
         if steps[current_step] == "FORWARD":
+            if B_overline.status():
+                pass
+                #print("Bck of car overline")
             # If the current step is moving forward, just follow the line until the next intersections
             # Enhanced Intersection detection
             check_for_intersection()
@@ -712,12 +703,12 @@ while True:
                 # Only stop the motors if the path is finished or the next step is not FORWARD.
                 possible_next_step = get_next_step()
                 if possible_next_step == None or possible_next_step != "FORWARD":
-                    print("Stopping: End of path or next step is not FORWARD")
+                    #("Stopping: End of path or next step is not FORWARD")
                     stop_motors()
 
                 pickup_next_step = should_pickup_next_step()
                 if possible_next_step == "FORWARD" and pickup_next_step:
-                    print("Stopping: Tower detected at next intersection")
+                    #print("Stopping: Tower detected at next intersection")
                     stop_motors()
                     servo.angle = ARM_DOWN
                     
@@ -725,7 +716,7 @@ while True:
                 intersection_detected = False
                 next_step()
             else:
-                # print("Follow line with PID-controller")
+                
                 error = (
                     L_overline.value() - R_overline.value()
                 ) / 65535.0  # Normalize between -1 and 1
@@ -743,7 +734,7 @@ while True:
                 # Adjust motor speeds
                 left_speed = int(BASE_SPEED + (correction * BASE_SPEED))
                 right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
-                # print(f"Left speed {left_speed} Right speed {right_speed}")
+
                 if intersection_detected:
                    Motor_Left.run(left_speed * 0.7)
                    Motor_Right.run(right_speed * 0.7) 
@@ -761,7 +752,8 @@ while True:
                 turn_right()
                 # If the robot is turning right, it should stop turning once the right(TODO: left?) sensor hits the black line
                 if (
-                    ( R_overline.status() or L_overline.status() )
+                    ( R_overline.status() #or L_overline.status() 
+                     )
                     and time.monotonic() - time_since_next_step > get_turning_delay()
                 ):
                     stop_motors()
@@ -770,7 +762,8 @@ while True:
                 turn_left()
                 # If the robot is turning left, it should stop turning once the left(TODO: right?) sensor hits the black line
                 if (
-                    ( L_overline.status() or R_overline.status() )
+                    ( L_overline.status() #or R_overline.status() 
+                     )
                     and time.monotonic() - time_since_next_step > get_turning_delay()
                 ):
                     stop_motors()
@@ -812,20 +805,28 @@ while True:
     
     # Only poll the server and websocket every 20th iteration when started
     # Always poll when not started to ensure responsive UI
-    if not started or poll_counter >= 20:
+    if not started or poll_counter >= 10:
         # Polling HTTP server
-        server.poll()
-
-        if websocket is not None:
-            # If there is a websocket connection, send all queued messages (setup data, ...)            
-            while len(message_queue) > 0:
-                msg = message_queue.pop(0)
-                websocket.send_message(json.dumps(msg), fail_silently=True)
-            poll_websocket()
+        if activity_counter:
+            activity_counter = False
+            #print("Polling ultrasonic")
+            if started and collision.detect():
+                #print("Collision Detected! Resetting...")      
+                reset_state()
+                status_led.collision()
         else:
-            # Don't show loading animation here, it's handled in the LED priority section
-            pass
-            
+            activity_counter = True
+            #print("Polling websocket and http")
+            server.poll()
+            if websocket is not None:
+                # If there is a websocket connection, send all queued messages (setup data, ...)            
+                while len(message_queue) > 0:
+                    msg = message_queue.pop(0)
+                    websocket.send_message(json.dumps(msg), fail_silently=True)
+                poll_websocket()
+            else:
+                pass
+                
         # Reset counter after polling
         poll_counter = 0
 
