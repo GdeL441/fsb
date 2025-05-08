@@ -158,14 +158,14 @@ async def ws(request, ws):
     print("WebSocket client connected")
     
     # Send initial setup data
-    send_setup_data()
+    await send_setup_data()
     
     try:
         # Handle incoming messages
         while True:
             data = await ws.receive()
             if data:
-                handle_websocket_message(data)
+                await handle_websocket_message(data)
     except Exception as e:
         print(f"WebSocket error: {type(e).__name__}: {e}")
     finally:
@@ -527,19 +527,23 @@ async def check_for_intersection():
         intersection_detected = True
         await maybe_pickup()
         
-# Start the Microdot server in a background task
-def start_server():
+async def start_server():
     try:
-        app.run(host='0.0.0.0', port=PORT, debug=True)
+        await app.start_server(host='0.0.0.0', port=PORT, debug=True)
     except Exception as e:
         print("Server error:", e)
         machine.reset()  # Reset the device if the server crashes
 
-import _thread
-_thread.start_new_thread(start_server, ())
-
 async def main():
-    # Main control loop
+    # Create the server task
+    
+    global servo_active_time, calibrated, started, current_step, error_sum, last_error
+    global intersection_detected, robot_pos, robot_heading, green_towers, finished
+    global MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, TURN_SPEED, steps
+    global MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, time_since_next_step, timeout_time
+    global L_overline, R_overline, B_overline, L_R_calibration_threshold, B_calibration_threshold
+    global turn_error_sum, turn_last_error, websocket
+    
     while True:
         if not calibrated:
             await calibrate_all(False)
@@ -631,6 +635,12 @@ async def main():
             status_led.loading_animation()
 
         # Small delay to prevent CPU hogging
-        time.sleep(0.01)
+        #time.sleep(0.01)
 
-asyncio.run(main())
+async def test():
+    await asyncio.gather(start_server(), main())
+
+try:
+    asyncio.run(test())
+finally:
+    asyncio.new_event_loop()
