@@ -49,7 +49,7 @@ timeout_time = None
 started = False
 
 # Add servo constants:
-ARM_DOWN = 172
+ARM_DOWN = 168
 ARM_UP = 10
 
 # Keep track if first calibration has been done.
@@ -470,7 +470,6 @@ async def next_step():
 
 async def pickup():
     global servo_active_time, timeout_time
-    timeout_time = time.ticks_ms()
     set_servo_angle(ARM_UP)
     servo_active_time = time.ticks_ms()
     
@@ -555,8 +554,6 @@ async def run_main_loop():
                 status_led.collision()
                 reset_state()
 
-            if len(green_towers) == 0:
-                status_led.return_home()
 
             await check_for_intersection()
 
@@ -630,6 +627,8 @@ async def run_main_loop():
             if time.ticks_diff(time.ticks_ms(), servo_active_time) > 700:
                 servo_active_time = None
                 set_servo_angle(ARM_DOWN)
+        elif started and len(green_towers) == 0:
+            status_led.return_home()
         elif started:
             status_led.next_object()
         elif finished:
