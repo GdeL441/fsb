@@ -6,6 +6,8 @@ import network
 from modules import Motors, Sensors, Ultrasonic, Statusled
 from microdot import Microdot, Response, send_file
 from microdot.websocket import with_websocket
+import _thread
+import asyncio
 
 print("test")
 
@@ -539,6 +541,8 @@ async def start_server():
 
 
 async def run_main_loop():
+    global servo_active_time, timeout_time, started, current_step, error_sum, last_error, intersection_detected, robot_pos, robot_heading, green_towers, steps, time_since_next_step, MONITORING_SENSOR, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, websocket, last_message_time, poll_counter, led_counter, websocket_counter, possible_next_step, pickup_next_step, error, error_derivative, left_speed, right_speed, msg, data, left_status, right_status, back_status, intersection_detection_time
+    global finished
     # Main control loop
     while True:
         print("Main loop")

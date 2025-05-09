@@ -133,9 +133,6 @@ async function connectWs(url) {
     statusDot.classList.remove("bg-danger");
     updateConnectButton(true);
     addToLog('Connection established', 'received');
-    
-    // Request setup data immediately after connection
-    ws.send(JSON.stringify({ action: "get_setup" }));
   };
 
   ws.onclose = () => {
@@ -150,51 +147,77 @@ async function connectWs(url) {
   ws.onmessage = event => {
     const data = JSON.parse(event.data);
     addToLog(data, 'received');
-    
-    // Handle specific message types from code.py
-    if (data.action === "setup") {
-      // Store received thresholds and settings
-      thresholds = {
-        L: data.L,
-        R: data.R,
-        B: data.B,
-        L_R_calibration_threshold: data.L_R_calibration_threshold,
-        B_calibration_threshold: data.B_calibration_threshold
-      };
-      
-      speeds = {
-        speed: data.speed,
-        turnSpeed: data.turnSpeed
-      };
-      
-      // Update UI with received values
-      setThresholds(data.L, data.R, data.B, data.L_R_calibration_threshold, data.B_calibration_threshold);
-      setSpeed(data.speed, data.turnSpeed);
-      setPID(data.P, data.I, data.D);
-    }
-    else if (data.action === "sensor_values") {
-      // Update sensor value displays
-      if (thresholds) {
-        updateSensorValueDisplay("left-sensor-value", data.L, thresholds.L);
-        updateSensorValueDisplay("right-sensor-value", data.R, thresholds.R);
-        updateSensorValueDisplay("back-sensor-value", data.B, thresholds.B);
-      }
-    }
-    else if (data.action === "thresholds_updated") {
-      // Save to localStorage
-      localStorage.setItem("thresholds", JSON.stringify(data.thresholds));
 
-      // Update thresholds variable
+    if (data.action === "sensor_values") {
+      // Get current thresholds
+      const thresholdL = Number(document.querySelector("#left-sensor-threshold").value);
+      const thresholdR = Number(document.querySelector("#right-sensor-threshold").value);
+      const thresholdB = Number(document.querySelector("#back-sensor-threshold").value);
+
+      // Update displays with color coding
+      updateSensorValueDisplay("left-sensor-value", data.L, thresholdL);
+      updateSensorValueDisplay("right-sensor-value", data.R, thresholdR);
+      updateSensorValueDisplay("back-sensor-value", data.B, thresholdB);
+    } else if (data.action == "setup") {
+      console.log("received setup data", data)
+      let threshold = { L: data["L"], R: data["R"], B: data["B"] }
+      localStorage.setItem("thresholds", JSON.stringify(threshold));
+      setThresholds(threshold.L, threshold.R, threshold.B)
+      let speed = { speed: data["speed"], turnSpeed: data["turnSpeed"] }
+      localStorage.setItem("speed", JSON.stringify(speed));
+      setSpeed(speed.speed, speed.turnSpeed)
+      let pid = { P: data["P"], I: data["I"], D: data["D"] }
+      localStorage.setItem("pid", JSON.stringify(pid));
+      setPID(pid.P, pid.I, pid.D)
+    } else if (data.action == "next_step") {
+      console.log(data.step)
+      step.textContent = `${data.step}`
+    } else if (data.action == "position_updated") {
+      let newPos = JSON.stringify(data.position)
+      let previousPos = position.textContent
+      if (previousPos != newPos) {
+        let greenDot = dots.find((dot) => dot.x == data.position.x && dot.y == data.position.y && dot.color == "green")
+        console.log("green", dots, data, score, greenDot)
+        if (greenDot) {
+          score += 100
+          document.querySelector("#score").innerText = score
+        }
+        let redDot = dots.find((dot) => dot.x == data.position.x && dot.y == data.position.y && dot.color == "red")
+        console.log("red", dots, data, score, redDot)
+        if (redDot) {
+          score -= 50
+          document.querySelector("#score").innerText = score
+        }
+      }
+
+      position.textContent = newPos
+      heading.textContent = data.heading
+      console.log("heading", data.heading, "position", data.position)
+      drawDot(data.position.x, data.position.y, data.heading)
+    } else if (data.action == "finished") {
+      console.log("Finished")
+      if ((timer / 1000) / 60 < 5) {
+        score += 200
+      } else {
+        score += (timer / 1000) * 3
+      }
+      document.querySelector("#score").innerText = score
+      stopTimer()
+    } else if (data.action === "thresholds_updated") {
+      console.log("Received calibrated thresholds:", data.thresholds);
+
+      // Update the threshold input fields
       thresholds = data.thresholds;
-      
-      // Update UI
       setThresholds(
-        data.thresholds.L, 
-        data.thresholds.R, 
+        data.thresholds.L,
+        data.thresholds.R,
         data.thresholds.B,
         data.thresholds.L_R_calibration_threshold,
         data.thresholds.B_calibration_threshold
       );
+
+      // Save to localStorage
+      localStorage.setItem("thresholds", JSON.stringify(data.thresholds));
 
       // Reset the calibrate button if it's in loading state
       const calibrateBtn = document.querySelector("#calibrate-btn");
@@ -616,40 +639,22 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   startBtn.addEventListener("click", async () => {
-    const startPos = dots.find(dot => dot.color == "start");
+    const startPos = dots.find(dot => dot.color == "start")
     if (startPos)
       drawDot(startPos.x, startPos.y, "N");
 
-    if (!ws || !thresholds || !speeds) return;
+    if (!ws || !thresholds || !speeds) return
 
-    let data = { 
-      thresholds: {
-        L: thresholds.L,
-        R: thresholds.R,
-        B: thresholds.B
-      }, 
-      speed: speeds.speed, 
-      turnSpeed: speeds.turnSpeed,
-      L_R_calibration_threshold: thresholds.L_R_calibration_threshold,
-      B_calibration_threshold: thresholds.B_calibration_threshold
-    };
-    
+
+    let data = { thresholds, speed: speeds.speed, turnSpeed: speeds.turnSpeed }
     if (solution) {
-      let green_towers = dots.filter(dot => dot.color == "green").map(({ x, y }) => ({ x, y }));
-      ws.send(JSON.stringify({ 
-        action: "start", 
-        path: solution.directions, 
-        heading: "N", 
-        startX: startPos?.x, 
-        startY: startPos?.y, 
-        green_towers, 
-        ...data 
-      }));
+      let green_towers = dots.filter(dot => dot.color == "green").map(({ x, y }) => ({ x, y }))
+      ws.send(JSON.stringify({ action: "start", path: solution.directions, heading: "N", startX: startPos?.x, startY: startPos?.y, green_towers, ...data }))
     } else {
-      ws.send(JSON.stringify({ action: "start", ...data }));
+      ws.send(JSON.stringify({ action: "start", ...data }))
     }
 
-    startTimer();
+    startTimer()
   });
 
   stopBtn.addEventListener("click", async () => {
