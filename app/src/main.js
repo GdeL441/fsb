@@ -142,6 +142,10 @@ async function connectWs(url) {
     document.getElementById("status").textContent = "Disconnected";
     updateConnectButton(false);
     ws = null;
+    
+    // Stop and reset the timer when connection is lost
+    stopTimer();
+    resetTimer();
   };
 
   ws.onmessage = event => {
@@ -176,17 +180,34 @@ async function connectWs(url) {
       let newPos = JSON.stringify(data.position)
       let previousPos = position.textContent
       if (previousPos != newPos) {
+        // Check for green tower at current position
         let greenDot = dots.find((dot) => dot.x == data.position.x && dot.y == data.position.y && dot.color == "green")
-        console.log("green", dots, data, score, greenDot)
         if (greenDot) {
-          score += 100
-          document.querySelector("#score").innerText = score
+          // Create a unique identifier for this tower
+          const towerKey = `${greenDot.x},${greenDot.y}`;
+          
+          // Only count if not already counted
+          if (!countedGreenTowers.includes(towerKey)) {
+            countedGreenTowers.push(towerKey);
+            score += 100;
+            document.querySelector("#score").innerText = score;
+            console.log("Green tower counted:", towerKey);
+          }
         }
+        
+        // Check for red tower at current position
         let redDot = dots.find((dot) => dot.x == data.position.x && dot.y == data.position.y && dot.color == "red")
-        console.log("red", dots, data, score, redDot)
         if (redDot) {
-          score -= 50
-          document.querySelector("#score").innerText = score
+          // Create a unique identifier for this tower
+          const towerKey = `${redDot.x},${redDot.y}`;
+          
+          // Only count if not already counted
+          if (!countedRedTowers.includes(towerKey)) {
+            countedRedTowers.push(towerKey);
+            score -= 50;
+            document.querySelector("#score").innerText = score;
+            console.log("Red tower counted:", towerKey);
+          }
         }
       }
 
@@ -196,13 +217,27 @@ async function connectWs(url) {
       drawDot(data.position.x, data.position.y, data.heading)
     } else if (data.action == "finished") {
       console.log("Finished")
-      if ((timer / 1000) / 60 < 5) {
-        score += 200
+      if ((milliseconds / 1000) / 60 < 5) {
+        // If finished in less than 5 minutes, always award 200 points
+        score += 200;
+        console.log("Finished in under 5 minutes! +200 points");
+        
+        // If all green towers were collected, also award 3 points per remaining second
+        if (countedGreenTowers.length === dots.filter(dot => dot.color === "green").length) {
+          const remainingSeconds = 300 - (milliseconds / 1000); // 300 seconds = 5 minutes
+          const bonusPoints = Math.floor(remainingSeconds * 3);
+          score += bonusPoints;
+          console.log(`All green towers collected! Additional bonus: ${bonusPoints} points for ${Math.floor(remainingSeconds)} seconds remaining`);
+          
+          // Show bonus notification
+          showBonusNotification(bonusPoints, Math.floor(remainingSeconds));
+        }
       } else {
-        score += (timer / 1000) * 3
+        // If finished in more than 5 minutes, no time bonus
+        console.log("Finished in over 5 minutes, no time bonus");
       }
-      document.querySelector("#score").innerText = score
-      stopTimer()
+      document.querySelector("#score").innerText = score;
+      stopTimer();
     } else if (data.action === "thresholds_updated") {
       console.log("Received calibrated thresholds:", data.thresholds);
 
@@ -237,6 +272,10 @@ async function connectWs(url) {
     statusDot.classList.add("bg-danger");
     updateConnectButton(false);
     ws = null;
+    
+    // Stop and reset the timer when connection error occurs
+    stopTimer();
+    resetTimer();
   };
   const originalSend = ws.send;
   ws.send = function(data) {
@@ -645,7 +684,6 @@ window.addEventListener("DOMContentLoaded", () => {
 
     if (!ws || !thresholds || !speeds) return
 
-
     let data = { thresholds, speed: speeds.speed, turnSpeed: speeds.turnSpeed }
     if (solution) {
       let green_towers = dots.filter(dot => dot.color == "green").map(({ x, y }) => ({ x, y }))
@@ -654,13 +692,13 @@ window.addEventListener("DOMContentLoaded", () => {
       ws.send(JSON.stringify({ action: "start", ...data }))
     }
 
-    startTimer()
+    startTimer() // Start the timer when the start button is pressed
   });
 
   stopBtn.addEventListener("click", async () => {
     if (!ws) return
     ws.send(JSON.stringify({ action: "stop" }))
-    stopTimer()
+    stopTimer() // Stop the timer when the stop button is pressed
   });
 
   resetBtn.addEventListener("click", async () => {
@@ -675,6 +713,9 @@ window.addEventListener("DOMContentLoaded", () => {
       y: 0,
       direction: null
     };
+    // Reset the counted towers arrays
+    countedGreenTowers = [];
+    countedRedTowers = [];
     drawGrid()
   });
 
@@ -967,3 +1008,101 @@ function showCalibrationNotification() {
   }
 }
 
+// Add a function to handle red tower touches
+function handleRedTowerTouch() {
+  // Create a unique identifier for the current position
+  const posKey = currentPosition.x !== null && currentPosition.y !== null ? 
+    `${currentPosition.x},${currentPosition.y}` : "manual";
+  
+  // Only count if not already counted
+  if (!countedRedTowers.includes(posKey)) {
+    countedRedTowers.push(posKey);
+    score -= 50;
+    document.querySelector("#score").innerText = score;
+    showRedTowerNotification();
+  } else {
+    // Show a different notification if already counted
+    showAlreadyCountedNotification();
+  }
+}
+
+// Add a function to show the red tower notification
+function showRedTowerNotification() {
+  // Create notification if it doesn't exist
+  let notification = document.getElementById("red-tower-notification");
+  if (!notification) {
+    notification = document.createElement("div");
+    notification.id = "red-tower-notification";
+    notification.className = "alert alert-danger position-fixed top-0 end-0 m-3 d-none";
+    notification.innerHTML = "Red tower touched! -50 points";
+    document.body.appendChild(notification);
+  }
+  
+  // Show notification
+  notification.classList.remove("d-none");
+  
+  // Hide after 3 seconds
+  setTimeout(() => {
+    notification.classList.add("d-none");
+  }, 3000);
+}
+
+// Add the red tower button to the DOM when the page loads
+window.addEventListener("DOMContentLoaded", () => {
+  // Find the score element
+  const scoreElement = document.querySelector("#score");
+  if (scoreElement && scoreElement.parentElement) {
+    // Create the button
+    const redTowerBtn = document.createElement("button");
+    redTowerBtn.id = "red-tower-btn";
+    redTowerBtn.className = "btn btn-danger mt-2";
+    redTowerBtn.textContent = "Red Tower Touched (-50)";
+    redTowerBtn.style.width = "100%";
+    
+    // Add the button after the score element
+    scoreElement.parentElement.appendChild(redTowerBtn);
+    
+    // Add event listener
+    redTowerBtn.addEventListener("click", handleRedTowerTouch);
+  }
+});
+
+// Add arrays to track which towers have been counted
+let countedGreenTowers = [];
+let countedRedTowers = [];
+
+// Add a function to show notification when tower already counted
+function showAlreadyCountedNotification() {
+  let notification = document.getElementById("already-counted-notification");
+  if (!notification) {
+    notification = document.createElement("div");
+    notification.id = "already-counted-notification";
+    notification.className = "alert alert-warning position-fixed top-0 end-0 m-3 d-none";
+    notification.innerHTML = "Tower already counted!";
+    document.body.appendChild(notification);
+  }
+  
+  notification.classList.remove("d-none");
+  
+  setTimeout(() => {
+    notification.classList.add("d-none");
+  }, 3000);
+}
+
+// Add a function to show bonus notification
+function showBonusNotification(points, seconds) {
+  let notification = document.getElementById("bonus-notification");
+  if (!notification) {
+    notification = document.createElement("div");
+    notification.id = "bonus-notification";
+    notification.className = "alert alert-success position-fixed top-0 end-0 m-3 d-none";
+    document.body.appendChild(notification);
+  }
+  
+  notification.innerHTML = `Time bonus: +${points} points for ${seconds} seconds remaining!`;
+  notification.classList.remove("d-none");
+  
+  setTimeout(() => {
+    notification.classList.add("d-none");
+  }, 5000); // Show for 5 seconds
+}

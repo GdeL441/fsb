@@ -319,7 +319,9 @@ def turn_left():
     
     turn_elapsed_time = time.ticks_diff(time.ticks_ms(), time_since_next_step) / 1000
     
-    if turn_elapsed_time < 0.12:
+    if turn_elapsed_time < 0.05:
+        turn_speed = 80
+    elif turn_elapsed_time < 0.12:
         turn_speed = 100
     else:
         turn_speed = TURN_SPEED
@@ -334,11 +336,12 @@ def turn_right():
     
     turn_elapsed_time = time.ticks_diff(time.ticks_ms(), time_since_next_step) / 1000
     
-    if turn_elapsed_time < 0.12:
+    if turn_elapsed_time < 0.05:
+        turn_speed = 80
+    elif turn_elapsed_time < 0.12:
         turn_speed = 100
     else:
         turn_speed = TURN_SPEED
-    
     Motor_Left.run(turn_speed)
     Motor_Right.run(-turn_speed)
 
@@ -447,6 +450,7 @@ def should_pickup_next_step():
 
 async def next_step():
     global current_step, started, time_since_next_step, intersection_detected, finished
+    intersection_detected = False
 
     await update_pos_and_heading()
 
