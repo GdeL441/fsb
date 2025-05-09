@@ -1,13 +1,12 @@
 import time
 import json
 import machine
-import asyncio
 from machine import Pin, PWM, ADC
 import network
 from modules import Motors, Sensors, Ultrasonic, Statusled
 from microdot import Microdot, Response, send_file
 from microdot.websocket import with_websocket
-
+print("test")
 # Initialize sensors
 # Using GP26, 27 and 28 (To be changed (NEW PCB))
 # 'Sensor.status()' returns True of False based on threshold
@@ -17,7 +16,7 @@ B_overline = Sensors.Sensor(Pin(26), 10000)
 
 # Calibration threshold
 L_R_calibration_threshold = 0.8
-B_calibration_threshold = 0.85
+B_calibration_threshold = 0.9
 
 # Initialize status sensor (To Be Replaced by RGB Strip)
 status_led = Statusled.Statusled(Pin(18))
@@ -27,7 +26,7 @@ Motor_Left = Motors.Motor(Pin(14), Pin(15))
 Motor_Right = Motors.Motor(Pin(17), Pin(16))
 
 # Initialize Ultrasonic, in cm
-collision = Ultrasonic.Ultrasonic(machine.UART(0), 15)
+# collision = Ultrasonic.Ultrasonic(machine.UART(0), 15)
 
 # Initialize servo motor
 servo_pwm = PWM(Pin(9))
@@ -108,6 +107,7 @@ SSID = "Fast Shitbox"
 PASSWORD = "password"
 PORT = 80
 
+print("test")
 # Setup WiFi AP
 ap = network.WLAN(network.AP_IF)
 ap.active(True)
@@ -115,6 +115,7 @@ ap.config(essid=SSID, password=PASSWORD)
 print("Access point started")
 print("Network config:", ap.ifconfig())
 
+print("test")
 # WebSocket state
 websocket = None
 last_message_time = time.ticks_ms()
@@ -138,7 +139,6 @@ def static(request, path):
 def handle_exception(request, exception):
     print(f"Server error: {type(exception).__name__}: {exception}")
     return {"error": str(exception)}, 500
-
 # WebSocket route
 @app.route('/ws')
 @with_websocket
@@ -158,14 +158,14 @@ async def ws(request, ws):
     print("WebSocket client connected")
     
     # Send initial setup data
-    await send_setup_data()
+    send_setup_data()
     
     try:
         # Handle incoming messages
         while True:
             data = await ws.receive()
             if data:
-                await handle_websocket_message(data)
+                handle_websocket_message(data)
     except Exception as e:
         print(f"WebSocket error: {type(e).__name__}: {e}")
     finally:
@@ -174,7 +174,7 @@ async def ws(request, ws):
             websocket = None
             print("WebSocket client disconnected")
 
-async def send_setup_data():
+def send_setup_data():
     """Send initial setup data to the client"""
     if websocket is None:
         pass
@@ -192,10 +192,10 @@ async def send_setup_data():
         "I": Ki,
         "D": Kd
     }
-    await send_websocket_message(data, important=True)
+    send_websocket_message(data, important=True)
     print(f"Sent setup data: {data}")
 
-async def send_websocket_message(data, important=False):
+def send_websocket_message(data, important=False):
     global websocket, last_message_time
     
     if websocket is None:
@@ -208,14 +208,14 @@ async def send_websocket_message(data, important=False):
     
     try:
         json_data = json.dumps(data)
-        await websocket.send(json_data)
+        websocket.send(json_data)
         last_message_time = current_time
         return True
     except Exception as e:
         print("Error sending message:", e)
         return False
 
-async def handle_websocket_message(message):
+def handle_websocket_message(message):
     global started, current_step, error_sum, last_error
     global MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, TURN_SPEED
     global steps, robot_pos, robot_heading, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS
@@ -226,7 +226,7 @@ async def handle_websocket_message(message):
         print("Received:", data)
         
         if data["action"] == "get_setup":
-            await send_setup_data()
+            send_setup_data()
         elif data["action"] == "start":
             time_since_next_step = time.ticks_ms()
             MANUAL_CONTROL = False
@@ -288,7 +288,7 @@ async def handle_websocket_message(message):
             if MANUAL_CONTROL:
                 set_servo_angle(ARM_DOWN)
         elif data["action"] == "calibrate":
-            await calibrate_all(True)
+            calibrate_all(True)
     except Exception as e:
         print("Error handling WebSocket message:", e)
 
@@ -316,11 +316,11 @@ def turn_left():
     
     turn_elapsed_time = time.ticks_diff(time.ticks_ms(), time_since_next_step) / 1000
     
-    if turn_elapsed_time < 0.14:
-        turn_speed = 100
-    else:
+    if turn_elapsed_time < 0.5:
         turn_speed = TURN_SPEED
-
+    else:
+        turn_speed = TURN_SPEED * 0.7
+    
     Motor_Left.run(-turn_speed)
     Motor_Right.run(turn_speed)
 
@@ -331,10 +331,10 @@ def turn_right():
     
     turn_elapsed_time = time.ticks_diff(time.ticks_ms(), time_since_next_step) / 1000
     
-    if turn_elapsed_time < 0.14:
-        turn_speed = 100
-    else:
+    if turn_elapsed_time < 0.5:
         turn_speed = TURN_SPEED
+    else:
+        turn_speed = TURN_SPEED * 0.7
     
     Motor_Left.run(turn_speed)
     Motor_Right.run(-turn_speed)
@@ -343,7 +343,7 @@ def stop_motors():
     Motor_Right.stop()
     Motor_Left.stop()
 
-async def update_pos_and_heading(send=True):
+def update_pos_and_heading(send=True):
     global robot_pos, robot_heading
 
     if steps[current_step] == "FORWARD":
@@ -366,23 +366,23 @@ async def update_pos_and_heading(send=True):
             "position": robot_pos,
             "heading": robot_heading,
         }
-        await send_websocket_message(data, important=True)
+        send_websocket_message(data, important=True)
 
 def get_next_step():
     if current_step + 1 == len(steps):
         return None
     return steps[current_step + 1]
 
-async def maybe_pickup():
+def maybe_pickup():
     global robot_pos, robot_heading
     current_pos = robot_pos.copy()
     current_heading = robot_heading
 
-    await update_pos_and_heading(False)
+    update_pos_and_heading(False)
 
     tower = next((t for t in green_towers if t["x"] == robot_pos["x"] and t["y"] == robot_pos["y"]), None)
     if tower is not None:
-        await pickup()
+        pickup()
         green_towers.remove(tower)
 
     robot_pos = current_pos
@@ -442,10 +442,10 @@ def should_pickup_next_step():
     
     return any(t["x"] == final_x and t["y"] == final_y for t in green_towers)
 
-async def next_step():
+def next_step():
     global current_step, started, time_since_next_step, intersection_detected, finished
 
-    await update_pos_and_heading()
+    update_pos_and_heading()
 
     current_step += 1
     time_since_next_step = time.ticks_ms()
@@ -454,7 +454,7 @@ async def next_step():
         reset_state()
         data = {"action": "finished"}
         finished = True
-        await send_websocket_message(data, important=True)
+        send_websocket_message(data, important=True)
         return
     else:
         if steps[current_step] == "LEFT":
@@ -463,12 +463,12 @@ async def next_step():
             turn_right()
 
     data = {"action": "next_step", "step": steps[current_step]}
-    await send_websocket_message(data, important=True)
+    send_websocket_message(data, important=True)
 
-async def pickup():
+def pickup():
     global servo_active_time, timeout_time
+    timeout_time = time.ticks_ms()
     set_servo_angle(ARM_UP)
-    status_led.collection()
     servo_active_time = time.ticks_ms()
     
     data = {
@@ -476,16 +476,16 @@ async def pickup():
         "position": robot_pos,
         "remaining_towers": len(green_towers)
     }
-    await send_websocket_message(data, important=True)
+    send_websocket_message(data, important=True)
 
-async def send_sensor_values():
+def send_sensor_values():
     data = {
         "action": "sensor_values",
         "L": L_overline.value(),
         "R": R_overline.value(),
         "B": B_overline.value(),
     }
-    await send_websocket_message(data)
+    send_websocket_message(data)
 
 def manual_control():
     left, right = MANUAL_CONTROL_SPEEDS["left"], MANUAL_CONTROL_SPEEDS["right"]
@@ -494,7 +494,7 @@ def manual_control():
     if left < 0 and right < 0:
         status_led.reverse()
 
-async def calibrate_all(send=True):
+def calibrate_all(send=True):
     status_led.calibration()
     r_threshold = R_overline.calibrate(L_R_calibration_threshold)
     l_threshold = L_overline.calibrate(L_R_calibration_threshold)
@@ -512,7 +512,7 @@ async def calibrate_all(send=True):
                 "B_calibration_threshold": B_calibration_threshold
             }
         }
-        await send_websocket_message(data, important=True)
+        send_websocket_message(data, important=True)
 
 def get_intersection_delay():
     return 0.1 + (1.0 - (BASE_SPEED / 100.0)) * 0.4
@@ -520,127 +520,115 @@ def get_intersection_delay():
 def get_turning_delay():
     return 0.1 + (1.0 - (TURN_SPEED / 100.0)) * 0.4
 
-async def check_for_intersection():
+def check_for_intersection():
     global intersection_detected
     
     if L_overline.status() and R_overline.status() and not intersection_detected:
         intersection_detected = True
-        await maybe_pickup()
+        maybe_pickup()
         
-async def start_server():
+# Start the Microdot server in a background task
+def start_server():
     try:
-        await app.start_server(host='0.0.0.0', port=PORT, debug=True)
+        app.run(host='0.0.0.0', port=PORT, debug=True)
     except Exception as e:
         print("Server error:", e)
         machine.reset()  # Reset the device if the server crashes
 
-async def main():
-    # Create the server task
-    
-    global servo_active_time, calibrated, started, current_step, error_sum, last_error
-    global intersection_detected, robot_pos, robot_heading, green_towers, finished
-    global MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, TURN_SPEED, steps
-    global MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, time_since_next_step, timeout_time
-    global L_overline, R_overline, B_overline, L_R_calibration_threshold, B_calibration_threshold
-    global turn_error_sum, turn_last_error, websocket
-    
-    while True:
-        if not calibrated:
-            await calibrate_all(False)
-            calibrated = True
+import _thread
+_thread.start_new_thread(start_server, ())
 
-        if started:
-            if collision.detect():
-                print("Collision Detected! Resetting...")
-                status_led.collision()
-                reset_state()
+# Main control loop
+while True:
+    # if not calibrated:
+    #     calibrate_all(False)
+    #     calibrated = True
 
-            await check_for_intersection()
+    if started:
+        # if collision.detect():
+        #     print("Collision Detected! Resetting...")
+        #     status_led.collision()
+        #     reset_state()
 
-            if timeout_time and time.ticks_diff(time.ticks_ms(), timeout_time) < 500:
-                continue
-            else:
-                timeout_time = None
+        print("negawatt")
+        check_for_intersection()
 
-            if steps[current_step] == "FORWARD":
-                if ((B_overline.status() and intersection_detected) and 
-                    time.ticks_diff(time.ticks_ms(), time_since_next_step) > 500):
-                    
-                    possible_next_step = get_next_step()
-                    if possible_next_step is None or possible_next_step != "FORWARD":
-                        stop_motors()
-
-                    if possible_next_step == "FORWARD" and should_pickup_next_step():
-                        stop_motors()
-                        set_servo_angle(ARM_DOWN)
-
-                    intersection_detected = False
-                    await next_step()
-                else:
-                    error = (L_overline.value() - R_overline.value()) / 65535.0
-                    error_sum += error
-                    error_derivative = error - last_error
-                    last_error = error
-
-                    MAX_INTEGRAL = 1.0
-                    error_sum = max(-MAX_INTEGRAL, min(MAX_INTEGRAL, error_sum))
-
-                    correction = (Kp * error) + (Ki * error_sum) + (Kd * error_derivative)
-
-                    left_speed = int(BASE_SPEED + (correction * BASE_SPEED))
-                    right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
-
-                    if intersection_detected:
-                        Motor_Left.run(left_speed * 0.7)
-                        Motor_Right.run(right_speed * 0.7)
-                    else:
-                        Motor_Left.run(left_speed)
-                        Motor_Right.run(right_speed)
-            else:
-                if steps[current_step] == "RIGHT":
-                    turn_right()
-                    if ( (R_overline.status() or L_overline.status() ) and  
-                        ( time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000) ):
-                        stop_motors()
-                        await next_step()
-                elif steps[current_step] == "LEFT":
-                    turn_left()
-                    if ( (L_overline.status() or R_overline.status() ) and 
-                        time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000):
-                        stop_motors()
-                        await next_step()
+        if timeout_time and time.ticks_diff(time.ticks_ms(), timeout_time) < 500:
+            continue
         else:
-            if MANUAL_CONTROL:
-                manual_control()
-                status_led.manual_control()
-            elif MONITORING_SENSOR:
-                await send_sensor_values()
+            timeout_time = None
+
+        if steps[current_step] == "FORWARD":
+            if ((B_overline.status() and intersection_detected) and 
+                time.ticks_diff(time.ticks_ms(), time_since_next_step) > 500):
+                
+                possible_next_step = get_next_step()
+                if possible_next_step is None or possible_next_step != "FORWARD":
+                    stop_motors()
+
+                if possible_next_step == "FORWARD" and should_pickup_next_step():
+                    stop_motors()
+                    set_servo_angle(ARM_DOWN)
+
+                intersection_detected = False
+                next_step()
             else:
-                stop_motors()
-                if websocket is not None and not finished:
-                    status_led.waiting_for_orders()
-                elif websocket is not None and finished:
-                    status_led.finished()
+                error = (L_overline.value() - R_overline.value()) / 65535.0
+                error_sum += error
+                error_derivative = error - last_error
+                last_error = error
 
-        if servo_active_time is not None:
-            status_led.collection()
-            if time.ticks_diff(time.ticks_ms(), servo_active_time) > 700:
-                servo_active_time = None
-                set_servo_angle(ARM_DOWN)
-        elif started:
-            status_led.next_object()
-        elif finished:
-            status_led.finished()
-        elif websocket is None:
-            status_led.loading_animation()
+                MAX_INTEGRAL = 1.0
+                error_sum = max(-MAX_INTEGRAL, min(MAX_INTEGRAL, error_sum))
 
-        # Small delay to prevent CPU hogging
-        #time.sleep(0.01)
+                correction = (Kp * error) + (Ki * error_sum) + (Kd * error_derivative)
 
-async def test():
-    await asyncio.gather(start_server(), main())
+                left_speed = int(BASE_SPEED + (correction * BASE_SPEED))
+                right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
 
-try:
-    asyncio.run(test())
-finally:
-    asyncio.new_event_loop()
+                if intersection_detected:
+                    Motor_Left.run(left_speed * 0.7)
+                    Motor_Right.run(right_speed * 0.7)
+                else:
+                    Motor_Left.run(left_speed)
+                    Motor_Right.run(right_speed)
+        else:
+            if steps[current_step] == "RIGHT":
+                turn_right()
+                if ( (R_overline.status() or L_overline.status() ) and  
+                    ( time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000) ):
+                    stop_motors()
+                    next_step()
+            elif steps[current_step] == "LEFT":
+                turn_left()
+                if ( (L_overline.status() or R_overline.status() ) and 
+                    time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000):
+                    stop_motors()
+                    next_step()
+    else:
+        if MANUAL_CONTROL:
+            manual_control()
+            status_led.manual_control()
+        elif MONITORING_SENSOR:
+            send_sensor_values()
+        else:
+            stop_motors()
+            if websocket is not None and not finished:
+                status_led.waiting_for_orders()
+            elif websocket is not None and finished:
+                status_led.finished()
+
+    if servo_active_time is not None:
+        status_led.collection()
+        if time.ticks_diff(time.ticks_ms(), servo_active_time) > 700:
+            servo_active_time = None
+            set_servo_angle(ARM_DOWN)
+    elif started:
+        status_led.next_object()
+    elif finished:
+        status_led.finished()
+    elif websocket is None:
+        status_led.loading_animation()
+
+    # Small delay to prevent CPU hogging
+    time.sleep(0.01)
