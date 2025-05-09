@@ -49,7 +49,7 @@ timeout_time = None
 started = False
 
 # Add servo constants:
-ARM_DOWN = 168
+ARM_DOWN = 175
 ARM_UP = 10
 
 # Keep track if first calibration has been done.
