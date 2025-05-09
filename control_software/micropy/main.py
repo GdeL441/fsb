@@ -110,7 +110,7 @@ SSID = "Fast Shitbox"
 PASSWORD = "password"
 PORT = 80
 
-print("test")
+
 # Setup WiFi AP
 ap = network.WLAN(network.AP_IF)
 ap.active(True)
@@ -118,7 +118,7 @@ ap.config(essid=SSID, password=PASSWORD)
 print("Access point started")
 print("Network config:", ap.ifconfig())
 
-print("test")
+
 # WebSocket state
 websocket = None
 last_message_time = time.ticks_ms()
@@ -636,7 +636,7 @@ async def run_main_loop():
         elif websocket is None:
             status_led.loading_animation()
 
-        await asyncio.sleep(0.01)  # Small delay to prevent CPU hogging
+        await asyncio.sleep(0.001)  # Small delay to prevent CPU hogging
 
 def main():
     loop = asyncio.get_event_loop()
