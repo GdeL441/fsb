@@ -21,7 +21,7 @@ class Ultrasonic:
         self.uart.write(b'\x55')
         self.t = utime.ticks_ms()
         while not self.uart.any():
-            if utime.ticks_diff(utime.ticks_ms(), self.t) > 50:
+            if utime.ticks_diff(utime.ticks_ms(), self.t) > 10:
                 print('Timeout (or other error) while reading from US100 sensor!')
         self.uart.readinto(self.buf, 2)
 
@@ -36,7 +36,7 @@ class Ultrasonic:
         self.uart.write(b'\x55')
         self.t = utime.ticks_ms()
         while not self.uart.any():
-            if utime.ticks_diff(utime.ticks_ms(), self.t) > 50:
+            if utime.ticks_diff(utime.ticks_ms(), self.t) > 10:
                 return False
         self.uart.readinto(self.buf, 2)
 

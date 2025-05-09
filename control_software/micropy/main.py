@@ -9,7 +9,6 @@ from microdot.websocket import with_websocket
 import _thread
 import asyncio
 
-print("test")
 
 # Initialize sensors
 # Using GP26, 27 and 28 (To be changed (NEW PCB))
@@ -20,7 +19,7 @@ B_overline = Sensors.Sensor(Pin(26), 10000)
 
 # Calibration threshold
 L_R_calibration_threshold = 0.8
-B_calibration_threshold = 0.9
+B_calibration_threshold = 0.85
 
 # Initialize status sensor (To Be Replaced by RGB Strip)
 status_led = Statusled.Statusled(Pin(18))
@@ -30,7 +29,7 @@ Motor_Left = Motors.Motor(Pin(14), Pin(15))
 Motor_Right = Motors.Motor(Pin(17), Pin(16))
 
 # Initialize Ultrasonic, in cm
-# collision = Ultrasonic.Ultrasonic(machine.UART(0), 15)
+collision = Ultrasonic.Ultrasonic(machine.UART(0), 15)
 
 # Initialize servo motor
 servo_pwm = PWM(Pin(9))
@@ -50,7 +49,7 @@ timeout_time = None
 started = False
 
 # Add servo constants:
-ARM_DOWN = 175
+ARM_DOWN = 172
 ARM_UP = 10
 
 # Keep track if first calibration has been done.
@@ -96,9 +95,9 @@ Ki = 0.01  # Integral gain
 Kd = 0.2  # Derivative gain
 
 
-# Base Speed (100% = max = 1023 for PWM)
-BASE_SPEED = 30  # %
-TURN_SPEED = 30  # %
+# Base Speed (100% = max)
+BASE_SPEED = 45  # %
+TURN_SPEED = 40  # %
 
 # Integral & Derivative Terms
 error_sum = 0
@@ -320,10 +319,10 @@ def turn_left():
     
     turn_elapsed_time = time.ticks_diff(time.ticks_ms(), time_since_next_step) / 1000
     
-    if turn_elapsed_time < 0.5:
-        turn_speed = TURN_SPEED
+    if turn_elapsed_time < 0.12:
+        turn_speed = 100
     else:
-        turn_speed = TURN_SPEED * 0.7
+        turn_speed = TURN_SPEED
     
     Motor_Left.run(-turn_speed)
     Motor_Right.run(turn_speed)
@@ -335,10 +334,10 @@ def turn_right():
     
     turn_elapsed_time = time.ticks_diff(time.ticks_ms(), time_since_next_step) / 1000
     
-    if turn_elapsed_time < 0.5:
-        turn_speed = TURN_SPEED
+    if turn_elapsed_time < 0.12:
+        turn_speed = 100
     else:
-        turn_speed = TURN_SPEED * 0.7
+        turn_speed = TURN_SPEED
     
     Motor_Left.run(turn_speed)
     Motor_Right.run(-turn_speed)
@@ -540,23 +539,25 @@ async def start_server():
         machine.reset()  # Reset the device if the server crashes
 
 
+
 async def run_main_loop():
     global servo_active_time, timeout_time, started, current_step, error_sum, last_error, intersection_detected, robot_pos, robot_heading, green_towers, steps, time_since_next_step, MONITORING_SENSOR, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, websocket, last_message_time, poll_counter, led_counter, websocket_counter, possible_next_step, pickup_next_step, error, error_derivative, left_speed, right_speed, msg, data, left_status, right_status, back_status, intersection_detection_time
-    global finished
+    global finished, calibrated
+
+    if not calibrated: # Calibrate the car on bootup
+        await calibrate_all(False)
+        calibrated = True
     # Main control loop
     while True:
-        print("Main loop")
-        # if not calibrated:
-        #     calibrate_all(False)
-        #     calibrated = True
-
         if started:
-            # if collision.detect():
-            #     print("Collision Detected! Resetting...")
-            #     status_led.collision()
-            #     reset_state()
+            if collision.detect():
+                print("Collision Detected! Resetting...")
+                status_led.collision()
+                reset_state()
 
-            print("negawatt")
+            if len(green_towers) == 0:
+                status_led.return_home()
+
             await check_for_intersection()
 
             if timeout_time and time.ticks_diff(time.ticks_ms(), timeout_time) < 500:
@@ -636,12 +637,13 @@ async def run_main_loop():
         elif websocket is None:
             status_led.loading_animation()
 
-        # Small delay to prevent CPU hogging
-        # time.sleep(0.01)
+        await asyncio.sleep(0.01)  # Small delay to prevent CPU hogging
 
-def run_async_server():
-    asyncio.run(start_server())
+def main():
+    loop = asyncio.get_event_loop()
+    loop.create_task(run_main_loop())
+    loop.create_task(start_server())
+    loop.run_forever()
 
-if __name__ == "__main__":
-    _thread.start_new_thread(run_main_loop, ())
-    run_async_server()
+if __name__ == "__main__":   
+    main()
