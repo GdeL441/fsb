@@ -573,6 +573,7 @@ async def run_main_loop():
                     if possible_next_step == "FORWARD" and should_pickup_next_step():
                         stop_motors()
                         set_servo_angle(ARM_DOWN)
+                        timeout_time = time.ticks_ms()
 
                     intersection_detected = False
                     await next_step()
