@@ -195,7 +195,7 @@ def send_setup_data():
     send_websocket_message(data, important=True)
     print(f"Sent setup data: {data}")
 
-def send_websocket_message(data, important=False):
+async def send_websocket_message(data, important=False):
     global websocket, last_message_time
     
     if websocket is None:
@@ -208,7 +208,7 @@ def send_websocket_message(data, important=False):
     
     try:
         json_data = json.dumps(data)
-        websocket.send(json_data)
+        await websocket.send(json_data)
         last_message_time = current_time
         return True
     except Exception as e:
@@ -528,107 +528,114 @@ def check_for_intersection():
         maybe_pickup()
         
 # Start the Microdot server in a background task
-def start_server():
+async def start_server():
     try:
-        app.run(host='0.0.0.0', port=PORT, debug=True)
+        await app.start_server(host='0.0.0.0', port=PORT, debug=True)
     except Exception as e:
         print("Server error:", e)
         machine.reset()  # Reset the device if the server crashes
 
-import _thread
-_thread.start_new_thread(start_server, ())
 
-# Main control loop
-while True:
-    # if not calibrated:
-    #     calibrate_all(False)
-    #     calibrated = True
+async def run_main_loop():
+    # Main control loop
+    while True:
+        print("Main loop")
+        # if not calibrated:
+        #     calibrate_all(False)
+        #     calibrated = True
 
-    if started:
-        # if collision.detect():
-        #     print("Collision Detected! Resetting...")
-        #     status_led.collision()
-        #     reset_state()
+        if started:
+            # if collision.detect():
+            #     print("Collision Detected! Resetting...")
+            #     status_led.collision()
+            #     reset_state()
 
-        print("negawatt")
-        check_for_intersection()
+            print("negawatt")
+            check_for_intersection()
 
-        if timeout_time and time.ticks_diff(time.ticks_ms(), timeout_time) < 500:
-            continue
-        else:
-            timeout_time = None
-
-        if steps[current_step] == "FORWARD":
-            if ((B_overline.status() and intersection_detected) and 
-                time.ticks_diff(time.ticks_ms(), time_since_next_step) > 500):
-                
-                possible_next_step = get_next_step()
-                if possible_next_step is None or possible_next_step != "FORWARD":
-                    stop_motors()
-
-                if possible_next_step == "FORWARD" and should_pickup_next_step():
-                    stop_motors()
-                    set_servo_angle(ARM_DOWN)
-
-                intersection_detected = False
-                next_step()
+            if timeout_time and time.ticks_diff(time.ticks_ms(), timeout_time) < 500:
+                continue
             else:
-                error = (L_overline.value() - R_overline.value()) / 65535.0
-                error_sum += error
-                error_derivative = error - last_error
-                last_error = error
+                timeout_time = None
 
-                MAX_INTEGRAL = 1.0
-                error_sum = max(-MAX_INTEGRAL, min(MAX_INTEGRAL, error_sum))
+            if steps[current_step] == "FORWARD":
+                if ((B_overline.status() and intersection_detected) and 
+                    time.ticks_diff(time.ticks_ms(), time_since_next_step) > 500):
+                    
+                    possible_next_step = get_next_step()
+                    if possible_next_step is None or possible_next_step != "FORWARD":
+                        stop_motors()
 
-                correction = (Kp * error) + (Ki * error_sum) + (Kd * error_derivative)
+                    if possible_next_step == "FORWARD" and should_pickup_next_step():
+                        stop_motors()
+                        set_servo_angle(ARM_DOWN)
 
-                left_speed = int(BASE_SPEED + (correction * BASE_SPEED))
-                right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
-
-                if intersection_detected:
-                    Motor_Left.run(left_speed * 0.7)
-                    Motor_Right.run(right_speed * 0.7)
+                    intersection_detected = False
+                    next_step()
                 else:
-                    Motor_Left.run(left_speed)
-                    Motor_Right.run(right_speed)
-        else:
-            if steps[current_step] == "RIGHT":
-                turn_right()
-                if ( (R_overline.status() or L_overline.status() ) and  
-                    ( time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000) ):
-                    stop_motors()
-                    next_step()
-            elif steps[current_step] == "LEFT":
-                turn_left()
-                if ( (L_overline.status() or R_overline.status() ) and 
-                    time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000):
-                    stop_motors()
-                    next_step()
-    else:
-        if MANUAL_CONTROL:
-            manual_control()
-            status_led.manual_control()
-        elif MONITORING_SENSOR:
-            send_sensor_values()
-        else:
-            stop_motors()
-            if websocket is not None and not finished:
-                status_led.waiting_for_orders()
-            elif websocket is not None and finished:
-                status_led.finished()
+                    error = (L_overline.value() - R_overline.value()) / 65535.0
+                    error_sum += error
+                    error_derivative = error - last_error
+                    last_error = error
 
-    if servo_active_time is not None:
-        status_led.collection()
-        if time.ticks_diff(time.ticks_ms(), servo_active_time) > 700:
-            servo_active_time = None
-            set_servo_angle(ARM_DOWN)
-    elif started:
-        status_led.next_object()
-    elif finished:
-        status_led.finished()
-    elif websocket is None:
-        status_led.loading_animation()
+                    MAX_INTEGRAL = 1.0
+                    error_sum = max(-MAX_INTEGRAL, min(MAX_INTEGRAL, error_sum))
 
-    # Small delay to prevent CPU hogging
-    time.sleep(0.01)
+                    correction = (Kp * error) + (Ki * error_sum) + (Kd * error_derivative)
+
+                    left_speed = int(BASE_SPEED + (correction * BASE_SPEED))
+                    right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
+
+                    if intersection_detected:
+                        Motor_Left.run(left_speed * 0.7)
+                        Motor_Right.run(right_speed * 0.7)
+                    else:
+                        Motor_Left.run(left_speed)
+                        Motor_Right.run(right_speed)
+            else:
+                if steps[current_step] == "RIGHT":
+                    turn_right()
+                    if ( (R_overline.status() or L_overline.status() ) and  
+                        ( time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000) ):
+                        stop_motors()
+                        next_step()
+                elif steps[current_step] == "LEFT":
+                    turn_left()
+                    if ( (L_overline.status() or R_overline.status() ) and 
+                        time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000):
+                        stop_motors()
+                        next_step()
+        else:
+            if MANUAL_CONTROL:
+                manual_control()
+                status_led.manual_control()
+            elif MONITORING_SENSOR:
+                send_sensor_values()
+            else:
+                stop_motors()
+                if websocket is not None and not finished:
+                    status_led.waiting_for_orders()
+                elif websocket is not None and finished:
+                    status_led.finished()
+
+        if servo_active_time is not None:
+            status_led.collection()
+            if time.ticks_diff(time.ticks_ms(), servo_active_time) > 700:
+                servo_active_time = None
+                set_servo_angle(ARM_DOWN)
+        elif started:
+            status_led.next_object()
+        elif finished:
+            status_led.finished()
+        elif websocket is None:
+            status_led.loading_animation()
+
+        # Small delay to prevent CPU hogging
+        # time.sleep(0.01)
+
+def run_async_server():
+    asyncio.run(start_server())
+
+if __name__ == "__main__":
+    _thread.start_new_thread(run_main_loop, ())
+    run_async_server()
