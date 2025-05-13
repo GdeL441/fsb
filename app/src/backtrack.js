@@ -8,7 +8,7 @@ export function shortestPath(COLS, ROWS, dots) {
     return null
   }
 
-  // Initialize grid, TODO: This shouldn't be necessary
+  // Initialize grid
   let grid = Array.from({ length: ROWS }).map((_, i) =>
     Array.from({ length: COLS }).map((_, j) => ({ x: j + 1, y: i + 1, color: "empty" }))
   );
@@ -18,40 +18,38 @@ export function shortestPath(COLS, ROWS, dots) {
 
   let nodes = [start, ...green]
   let dists = new Map();
-  // Compute shortest paths between all nodes using BFS
+  // Compute shortest paths between all nodes using BFS with prioritization
   for (let i = 0; i < nodes.length; i++) {
     for (let j = i + 1; j < nodes.length; j++) {
-      let path = bfs(ROWS, COLS, grid, nodes[i], nodes[j]);
+      let path = prioritizedBfs(ROWS, COLS, grid, nodes[i], nodes[j]);
       if (path) {
-        let dist = path.length - 1;
-        // save the found shortest path in the dists map on both the start end end position
+        // Calculate time cost instead of just distance
+        let timeCost = calculatePathTime(path);
+        
         if (!dists.has(nodes[i])) dists.set(nodes[i], new Map());
         if (!dists.has(nodes[j])) dists.set(nodes[j], new Map());
 
         let reversed = [...path].reverse()
         if (path[0].x != nodes[i].x || path[0].y != nodes[i].y) {
-          dists.get(nodes[i]).set(nodes[j], { dist, path: reversed });
-          dists.get(nodes[j]).set(nodes[i], { dist, path: path });
+          dists.get(nodes[i]).set(nodes[j], { dist: timeCost, path: reversed });
+          dists.get(nodes[j]).set(nodes[i], { dist: timeCost, path: path });
         } else {
-          dists.get(nodes[i]).set(nodes[j], { dist, path: path });
-          dists.get(nodes[j]).set(nodes[i], { dist, path: reversed });
+          dists.get(nodes[i]).set(nodes[j], { dist: timeCost, path: path });
+          dists.get(nodes[j]).set(nodes[i], { dist: timeCost, path: reversed });
         }
-
       }
     }
   }
 
-  let bestCost = 1000000
-  let bestPath = null
+  let bestCost = Infinity;
+  let bestPath = null;
 
   function backtrack(position, cost, visitedNodes, path) {
     if (visitedNodes.size == nodes.length) {
-      // Now also add the distance back to the starting position to the cost
       let pathHome = dists.get(position)?.get(start)
       if (!pathHome) return
 
       const newCost = cost + pathHome.dist
-      // All nodes visited, if the cost is lower than the previous, save the found path
       if (newCost < bestCost) {
         bestCost = newCost
         bestPath = [...path, ...pathHome.path.slice(1)]
@@ -59,31 +57,29 @@ export function shortestPath(COLS, ROWS, dots) {
       return
     }
 
-    // Now visit all unvisited nodes from the current node position
-    for (const node of nodes) {
-      if (node == position || visitedNodes.has(node)) {
-        // Skip if already visited
-        continue
-      }
+    // Sort nodes to prioritize forward movement first (from start position)
+    const nodesToVisit = nodes.filter(node => node !== position && !visitedNodes.has(node));
+    if (position === start) {
+      nodesToVisit.sort((a, b) => {
+        // Prioritize nodes that are in front of the start (assuming start faces north)
+        if (a.y < start.y && b.y >= start.y) return -1;
+        if (a.y >= start.y && b.y < start.y) return 1;
+        return 0;
+      });
+    }
 
-      // Look up the distance and path between the current position and the node
+    for (const node of nodesToVisit) {
       let pathBetween = dists.get(position)?.get(node)
       if (pathBetween) {
-        // Now mark this node as visited
-        visited.add(node);
-        backtrack(node, cost + pathBetween.dist, visited, [...path, ...pathBetween.path.slice(1)]);
-        // After a backtracking step ended, remove it from visited so 
-        // it can be visisted from a different path in the next iterations
-        visited.delete(node);
-
+        visitedNodes.add(node);
+        backtrack(node, cost + pathBetween.dist, visitedNodes, [...path, ...pathBetween.path.slice(1)]);
+        visitedNodes.delete(node);
       }
     }
   };
 
   let visited = new Set()
-  // Add start to visited, since it is also included in nodes
   visited.add(start)
-  // Start the backtracking
   backtrack(start, 0, visited, [start])
 
   if (bestPath) {
@@ -92,32 +88,105 @@ export function shortestPath(COLS, ROWS, dots) {
   }
 }
 
-// Calculate the shortest path between two nodes, later used to calculate the overal shortest path
-function bfs(ROWS, COLS, grid, start, goal) {
-  let queue = [[start, [start]]]; // (current position, path taken to reach goal)
-  let visited = new Set([`${start[0]},${start[1]}`]);
+// Calculate path time based on straight segments and turns
+function calculatePathTime(path) {
+  if (path.length < 2) return 0;
+  
+  let time = 0;
+  let currentDirection = getDirection(path[0], path[1]);
+  
+  for (let i = 1; i < path.length - 1; i++) {
+    const nextDirection = getDirection(path[i], path[i+1]);
+    if (nextDirection === currentDirection) {
+      time += 1367; // Straight movement
+    } else {
+      time += 950; // Turn
+      currentDirection = nextDirection;
+    }
+  }
+  
+  // Add time for the last segment
+  time += 1367;
+  
+  return time;
+}
+
+function getDirection(from, to) {
+  if (from.y > to.y) return 'N';
+  if (from.y < to.y) return 'S';
+  if (from.x > to.x) return 'W';
+  return 'E';
+}
+
+// Modified BFS to prioritize straight paths
+function prioritizedBfs(ROWS, COLS, grid, start, goal) {
+  let queue = [[start, [start]]];
+  let visited = new Set([`${start.x},${start.y}`]);
+  let foundPaths = [];
 
   while (queue.length > 0) {
     let [pos, path] = queue.shift();
     let { x, y } = pos;
 
-    if (x === goal.x && y === goal.y) return path; // Shortest path found
+    if (x === goal.x && y === goal.y) {
+      foundPaths.push(path);
+      continue; // Keep looking for other paths to find the most optimal one
+    }
 
-    for (let [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) { // Up, Down, Left, Right
-      let nx = x + dx, ny = y + dy;
-      let key = `${nx},${ny}`;
-      let i = nx - 1, j = ny - 1
-
-      if (i >= 0 && j >= 0 && j < ROWS && i < COLS && grid[j][i].color !== 'red' && !visited.has(key)) {
-        queue.push([grid[j][i], [...path, grid[j][i]]]);
-        visited.add(key);
+    // Get neighbors in a way that prioritizes straight movement
+    const neighbors = [];
+    const lastDirection = path.length > 1 ? getDirection(path[path.length-2], path[path.length-1]) : null;
+    
+    // Add straight movement first if continuing in same direction
+    if (lastDirection) {
+      const [dx, dy] = getDirectionVector(lastDirection);
+      const nx = x + dx, ny = y + dy;
+      addNeighborIfValid(nx, ny, neighbors, ROWS, COLS, grid, visited);
+    }
+    
+    // Then add other directions
+    for (let direction of ['N', 'S', 'E', 'W']) {
+      if (!lastDirection || direction !== lastDirection) {
+        const [dx, dy] = getDirectionVector(direction);
+        const nx = x + dx, ny = y + dy;
+        addNeighborIfValid(nx, ny, neighbors, ROWS, COLS, grid, visited);
       }
     }
+
+    for (const neighbor of neighbors) {
+      const key = `${neighbor.x},${neighbor.y}`;
+      visited.add(key);
+      queue.push([neighbor, [...path, neighbor]]);
+    }
   }
-  return null; // No path found
+
+  // Return the path with the lowest time cost
+  if (foundPaths.length > 0) {
+    foundPaths.sort((a, b) => calculatePathTime(a) - calculatePathTime(b));
+    return foundPaths[0];
+  }
+  return null;
 }
 
+function getDirectionVector(direction) {
+  switch (direction) {
+    case 'N': return [0, -1];
+    case 'S': return [0, 1];
+    case 'E': return [1, 0];
+    case 'W': return [-1, 0];
+    default: return [0, 0];
+  }
+}
 
+function addNeighborIfValid(nx, ny, neighbors, ROWS, COLS, grid, visited) {
+  const i = nx - 1, j = ny - 1;
+  const key = `${nx},${ny}`;
+  if (i >= 0 && j >= 0 && j < ROWS && i < COLS && grid[j][i].color !== 'red' && !visited.has(key)) {
+    neighbors.push(grid[j][i]);
+  }
+}
+
+// Rest of the code remains the same...
 function pathToDirections(path, heading = "N") {
   const directions = []
   for (let i = 0; i < path.length - 1; i++) {
