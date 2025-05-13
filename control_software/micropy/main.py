@@ -550,6 +550,7 @@ async def run_main_loop():
     if not calibrated: # Calibrate the car on bootup
         await calibrate_all(False)
         calibrated = True
+
     # Main control loop
     while True:
         if started:
