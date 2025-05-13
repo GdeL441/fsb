@@ -22,7 +22,7 @@ class Sensor:
             samples.append(self.value())
             time.sleep(0.01)  # Short delay between samples
         
-        # Use median value to avoid outliers
+        # Use median value for better results
         samples.sort()
         white_value = samples[2]  # Median Value
 

@@ -11,25 +11,25 @@ import asyncio
 
 
 # Initialize sensors
-# Using GP26, 27 and 28 (To be changed (NEW PCB))
+# Using GP26, 27 and 28
 # 'Sensor.status()' returns True of False based on threshold
-L_overline = Sensors.Sensor(Pin(28), 12000)
-R_overline = Sensors.Sensor(Pin(27), 14000)
+L_overline = Sensors.Sensor(Pin(28), 12000) # Now uses default values for thresholds,
+R_overline = Sensors.Sensor(Pin(27), 14000) # once the initialization is finished, the car will calibrate
 B_overline = Sensors.Sensor(Pin(26), 10000)
 
 # Calibration threshold
 L_R_calibration_threshold = 0.8
 B_calibration_threshold = 0.85
 
-# Initialize status sensor (To Be Replaced by RGB Strip)
+# Initialize status LED Strip
 status_led = Statusled.Statusled(Pin(18))
 
 # Initialize Motors
 Motor_Left = Motors.Motor(Pin(14), Pin(15))
 Motor_Right = Motors.Motor(Pin(17), Pin(16))
 
-# Initialize Ultrasonic, in cm
-collision = Ultrasonic.Ultrasonic(machine.UART(0), 15)
+# Initialize Ultrasonic, in cm, UART pin 0
+collision = Ultrasonic.Ultrasonic(machine.UART(0), threshold_cm=15)
 
 # Initialize servo motor
 servo_pwm = PWM(Pin(9))
@@ -43,6 +43,9 @@ def set_servo_angle(angle):
 
 # Timestamp at which servo was activated
 servo_active_time = None
+# Timestamp used for waiting at intersection if the next step is forward and we had to pickup a tower.
+# If the robot would keep moving forward, the arm would still be in the up position and would not be able
+# to pick up a possible tower on the next intersection.
 timeout_time = None
 
 # Is the timer currently running
@@ -74,7 +77,7 @@ DIRECTIONS = ["N", "E", "S", "W"]
 robot_heading = "N"  # "N" "E" "S" "W"
 green_towers = []  # Location of green towers
 
-# Steps the robot should take
+# Steps the robot should take if the frontend doesnt send a path
 steps = [
     "FORWARD",
     "FORWARD",
@@ -89,7 +92,7 @@ steps = [
 current_step = 0
 intersection_detected = False
 
-# PID Constants for line following
+# Default PID Constants for line following
 Kp = 1.5  # Proportional gain
 Ki = 0.01  # Integral gain
 Kd = 0.2  # Derivative gain
@@ -99,7 +102,7 @@ Kd = 0.2  # Derivative gain
 BASE_SPEED = 45  # %
 TURN_SPEED = 40  # %
 
-# Integral & Derivative Terms
+# Integral & Derivative Terms for PID-controller
 error_sum = 0
 last_error = 0
 turn_error_sum = 0
@@ -178,7 +181,7 @@ async def ws(request, ws):
             print("WebSocket client disconnected")
 
 async def send_setup_data():
-    """Send initial setup data to the client"""
+    # Send initial setup data to the frontend
     if websocket is None:
         pass
         
@@ -218,6 +221,7 @@ async def send_websocket_message(data, important=False):
         print("Error sending message:", e)
         return False
 
+# The function that handles websocket messages (receives them)
 async def handle_websocket_message(message):
     global started, current_step, error_sum, last_error
     global MONITORING_SENSOR, Kp, Ki, Kd, BASE_SPEED, TURN_SPEED
@@ -295,6 +299,8 @@ async def handle_websocket_message(message):
     except Exception as e:
         print("Error handling WebSocket message:", e)
 
+# Reset the cars state, this will be triggered either by the frontend or
+# when the car ran into a wall
 def reset_state():
     global started, current_step, error_sum, last_error, intersection_detected
     global robot_pos, robot_heading, green_towers, servo_active_time, finished
@@ -312,6 +318,9 @@ def reset_state():
     set_servo_angle(ARM_DOWN)
     finished = False
 
+# Turn the robot to the left on an intersection
+# Very fast left pulse (for speed)
+# Then turns with the TURN_SPEED speed
 def turn_left():
     global time_since_next_step, last_error, error_sum
     last_error = 0
@@ -329,6 +338,9 @@ def turn_left():
     Motor_Left.run(-turn_speed)
     Motor_Right.run(turn_speed)
 
+# Turn the robot to the right on an intersection
+# Very fast right pulse (for speed)
+# Then turns with the TURN_SPEED speed
 def turn_right():
     global time_since_next_step, last_error, error_sum
     last_error = 0
@@ -345,10 +357,14 @@ def turn_right():
     Motor_Left.run(turn_speed)
     Motor_Right.run(-turn_speed)
 
+
+# This function stops both motors
 def stop_motors():
     Motor_Right.stop()
     Motor_Left.stop()
 
+# whenever the car advances on the grid, update its position and heading for monitoring
+# on the frontend
 async def update_pos_and_heading(send=True):
     global robot_pos, robot_heading
 
@@ -374,11 +390,14 @@ async def update_pos_and_heading(send=True):
         }
         await send_websocket_message(data, important=True)
 
+# Return the next step in the path or None
 def get_next_step():
     if current_step + 1 == len(steps):
         return None
     return steps[current_step + 1]
 
+# Currently the front of the robot is at the intersection, look in the future to check
+# if there is a tower to pick up at this (actually 'next') intersection.
 async def maybe_pickup():
     global robot_pos, robot_heading
     current_pos = robot_pos.copy()
@@ -394,6 +413,9 @@ async def maybe_pickup():
     robot_pos = current_pos
     robot_heading = current_heading
 
+# This is a helper function for determening if the robot should wait at the intersection before moving forward
+# It checks if there is a tower on the next intersection forward that should be picked up, thus we should wait
+# for the arm to come back down. Otherwise the arm would not be down in time.
 def should_pickup_next_step():
     global robot_pos, robot_heading, current_step, steps, green_towers, servo_active_time
     
@@ -448,15 +470,18 @@ def should_pickup_next_step():
     
     return any(t["x"] == final_x and t["y"] == final_y for t in green_towers)
 
+# The car should advance to the next stap defined in the global path
 async def next_step():
     global current_step, started, time_since_next_step, intersection_detected, finished
     intersection_detected = False
 
+    # Calculate and update the new position and heading, since it has completed a step.
     await update_pos_and_heading()
 
     current_step += 1
     time_since_next_step = time.ticks_ms()
 
+    # Completed parcours
     if current_step == len(steps):
         reset_state()
         data = {"action": "finished"}
@@ -464,6 +489,7 @@ async def next_step():
         await send_websocket_message(data, important=True)
         return
     else:
+        # Call these turn functions here instead of continiously calling them in the main loop
         if steps[current_step] == "LEFT":
             turn_left()
         elif steps[current_step] == "RIGHT":
@@ -472,6 +498,8 @@ async def next_step():
     data = {"action": "next_step", "step": steps[current_step]}
     await send_websocket_message(data, important=True)
 
+# Pick up a tower by turning the servo 180 degrees, keep track of this Timestamp 
+# for showing the picking-up state on the statusled
 async def pickup():
     global servo_active_time, timeout_time
     set_servo_angle(ARM_UP)
@@ -484,6 +512,7 @@ async def pickup():
     }
     await send_websocket_message(data, important=True)
 
+# Used for manually calibrating the LDRs from the frontend. Only in monitoring mode.
 async def send_sensor_values():
     data = {
         "action": "sensor_values",
@@ -493,6 +522,8 @@ async def send_sensor_values():
     }
     await send_websocket_message(data)
 
+# If the car is in manual control mode, use the speeds received from the app
+# to turn the motors.
 def manual_control():
     left, right = MANUAL_CONTROL_SPEEDS["left"], MANUAL_CONTROL_SPEEDS["right"]
     Motor_Left.run(left)
@@ -500,6 +531,8 @@ def manual_control():
     if left < 0 and right < 0:
         status_led.reverse()
 
+# Calibrate a sensor by checking the current (white) adc-value and then multiplying
+# if by a factor to get the threshold.
 async def calibrate_all(send=True):
     status_led.calibration()
     r_threshold = R_overline.calibrate(L_R_calibration_threshold)
@@ -520,12 +553,15 @@ async def calibrate_all(send=True):
         }
         await send_websocket_message(data, important=True)
 
+# Calculate minimum time needed to make a FORWARD move
 def get_intersection_delay():
     return 0.1 + (1.0 - (BASE_SPEED / 100.0)) * 0.4
 
+# Calculate minimum time needed to make a turn
 def get_turning_delay():
     return 0.1 + (1.0 - (TURN_SPEED / 100.0)) * 0.4
 
+# Checks for intersections
 async def check_for_intersection():
     global intersection_detected
     
@@ -533,7 +569,7 @@ async def check_for_intersection():
         intersection_detected = True
         await maybe_pickup()
         
-# Start the Microdot server in a background task
+# Start the Microdot (WebSocket) server in a background task
 async def start_server():
     try:
         await app.start_server(host='0.0.0.0', port=PORT, debug=True)
@@ -542,39 +578,44 @@ async def start_server():
         machine.reset()  # Reset the device if the server crashes
 
 
-
+# Main loop
 async def run_main_loop():
     global servo_active_time, timeout_time, started, current_step, error_sum, last_error, intersection_detected, robot_pos, robot_heading, green_towers, steps, time_since_next_step, MONITORING_SENSOR, MANUAL_CONTROL, MANUAL_CONTROL_SPEEDS, websocket, last_message_time, poll_counter, led_counter, websocket_counter, possible_next_step, pickup_next_step, error, error_derivative, left_speed, right_speed, msg, data, left_status, right_status, back_status, intersection_detection_time
     global finished, calibrated
 
-    if not calibrated: # Calibrate the car on bootup
+    if not calibrated: # Calibrate the car on startup
         await calibrate_all(False)
         calibrated = True
-
     # Main control loop
     while True:
         if started:
-            if collision.detect():
+            if collision.detect(): # Ultrasonic collision detection
                 print("Collision Detected! Resetting...")
                 status_led.collision()
                 reset_state()
 
-
             await check_for_intersection()
-
+            
+            # Don't do anything if the car is in timeout state, used for waiting on intersections
             if timeout_time and time.ticks_diff(time.ticks_ms(), timeout_time) < 500:
                 continue
             else:
                 timeout_time = None
 
             if steps[current_step] == "FORWARD":
+                # If the current step is moving forward, just follow the line until the next intersections
+
                 if ((B_overline.status() and intersection_detected) and 
                     time.ticks_diff(time.ticks_ms(), time_since_next_step) > 500):
+                    # A intersection was detected and now we are at the intersection -> move to next step
+                    # Only stop the motors if the path is finished or the next step is not FORWARD.
                     
                     possible_next_step = get_next_step()
+
                     if possible_next_step is None or possible_next_step != "FORWARD":
                         stop_motors()
-
+                        # Robot should stop if the next move is FORWARD and there is a tower to pick up at 
+                        # the next intersections.
                     if possible_next_step == "FORWARD" and should_pickup_next_step():
                         stop_motors()
                         set_servo_angle(ARM_DOWN)
@@ -583,33 +624,44 @@ async def run_main_loop():
                     intersection_detected = False
                     await next_step()
                 else:
-                    error = (L_overline.value() - R_overline.value()) / 65535.0
-                    error_sum += error
-                    error_derivative = error - last_error
-                    last_error = error
+                    # Now follows the line with PID-controller
+                    error = (L_overline.value() - R_overline.value()) / 65535.0 # Normalize between -1 and 1
+                    error_sum += error # Intergral term
+                    error_derivative = error - last_error # Derivative term
+                    last_error = error # Save the error for the next iteration
 
+                    # Anti-windup: Limit integral term
                     MAX_INTEGRAL = 1.0
                     error_sum = max(-MAX_INTEGRAL, min(MAX_INTEGRAL, error_sum))
 
+                    # Compute correction
                     correction = (Kp * error) + (Ki * error_sum) + (Kd * error_derivative)
 
+                    # Adjust motor speeds
                     left_speed = int(BASE_SPEED + (correction * BASE_SPEED))
                     right_speed = int(BASE_SPEED - (correction * BASE_SPEED))
 
-                    if intersection_detected:
+                    # Slow the car down when the front detects an intersection,
+                    # Helps with pickup and makes it so the car doesnt go to far
+                    if intersection_detected:           
                         Motor_Left.run(left_speed * 0.7)
                         Motor_Right.run(right_speed * 0.7)
                     else:
                         Motor_Left.run(left_speed)
                         Motor_Right.run(right_speed)
             else:
+                # The robot is currently turning, wait until back on line before moving to next step
+                # To make sure the car actually turned 90 degrees, a minimum turning time is introduced (0.5s), this prevents the car
+                # from instantly going to the next step on turns(before actually starting the turn)
                 if steps[current_step] == "RIGHT":
+                    # If the robot is turning right, it should stop turning once the right or left sensor hits the black line
                     turn_right()
                     if ( (R_overline.status() or L_overline.status() ) and  
                         ( time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000) ):
                         stop_motors()
                         await next_step()
                 elif steps[current_step] == "LEFT":
+                    # If the robot is turning left, it should stop turning once the left or right sensor hits the black line
                     turn_left()
                     if ( (L_overline.status() or R_overline.status() ) and 
                         time.ticks_diff(time.ticks_ms(), time_since_next_step) > get_turning_delay() * 1000):
@@ -630,6 +682,8 @@ async def run_main_loop():
 
         if servo_active_time is not None:
             status_led.collection()
+            # The servo is activated to move up, if it has been in this 'up' state for longer than 0.7 seconds,
+             # move the servo back down
             if time.ticks_diff(time.ticks_ms(), servo_active_time) > 700:
                 servo_active_time = None
                 set_servo_angle(ARM_DOWN)
@@ -642,12 +696,12 @@ async def run_main_loop():
         elif websocket is None:
             status_led.loading_animation()
 
-        await asyncio.sleep(0.001)  # Small delay to prevent CPU hogging
+        await asyncio.sleep(0.001)  # Small delay to not break everything
 
 def main():
     loop = asyncio.get_event_loop()
-    loop.create_task(run_main_loop())
-    loop.create_task(start_server())
+    loop.create_task(run_main_loop()) # Main loop for controlling the car
+    loop.create_task(start_server()) # Webserver loop (for WebSocket)
     loop.run_forever()
 
 if __name__ == "__main__":   

@@ -3,7 +3,7 @@ from machine import Pin
 import neopixel
 
 class Statusled:
-    def __init__(self, pin, brightness=0.6):
+    def __init__(self, pin, brightness=0.6): # Initialize the statusled
         self.NUM_PIXELS = 35
         self.brightness = brightness
         self.pixels = neopixel.NeoPixel(Pin(pin), self.NUM_PIXELS)
@@ -16,8 +16,8 @@ class Statusled:
         self.pixels.fill((0, 0, 0))
         self.pixels.write()
 
-    def next_object(self):
-        intensity = smooth_sine(0.5)  # 0.5 Hz
+    def next_object(self): # Plays a white-green sine when the car drives to the next object.
+        intensity = smooth_sine(1)  # 1 Hz
         # Create breathing white-green effect
         for i in range(self.NUM_PIXELS):
             self.pixels[i] = (
@@ -27,31 +27,32 @@ class Statusled:
             )
         self.pixels.write()
 
-    def collection(self):
-        intensity = smooth_sine(1)  # 1 Hz
-        # Orange/yellow pulsing
+    def collection(self): # Orange on/off
+        intensity = smooth_sine(4)  # 4 Hz
+        intensity = round(intensity) # Make it on/off
+        # Orange pulsing
         color = (
             int(255 * intensity * self.brightness),  # R
             int(128 * intensity * self.brightness),  # G
-            0  # B
+            0                                        # B
         )
         self.pixels.fill(color)
         self.pixels.write()
 
-    def reverse(self):
-        intensity = smooth_sine(1)  # 1 Hz
+    def reverse(self): # Red on/off
+        intensity = smooth_sine(4)  # 4 Hz
+        intensity = round(intensity) # Make it on/off
         # Red pulsing
         color = (
-            int(255 * intensity * self.brightness),  # R
-            0,  # G
-            0   # B
+            int(255 * intensity * self.brightness),     # R
+            0,                                          # G
+            0                                           # B
         )
         self.pixels.fill(color)
         self.pixels.write()
 
-    def return_home(self):
-        intensity = smooth_sine(1)  # 1 Hz
-        # Blue pulsing
+    def return_home(self): # Blue constantly on
+        intensity = 1  #Constantly on
         color = (
             0,  # R
             0,  # G
@@ -60,7 +61,7 @@ class Statusled:
         self.pixels.fill(color)
         self.pixels.write()
 
-    def loading_animation(self):
+    def loading_animation(self): # White spinning, indicates no connection to the frontend
         # Number of lit pixels in the spinning segment
         segment_length = 5
         
@@ -93,7 +94,7 @@ class Statusled:
         # Show the updated pixels
         self.pixels.write()
 
-    def connected(self, duration=1.0):
+    def connected(self, duration=1.0): # Play a nice filling animation with 2 flickers to indicate a connection has been established
         start_time = time.ticks_ms()
         elapsed = 0        
         # Run until the animation is complete
@@ -129,7 +130,7 @@ class Statusled:
         self.pixels.fill((0, int(255 * self.brightness), 0))
         self.pixels.write()
         
-        # Optional: flash the completed circle a couple times to indicate completion
+        # Flash the completed circle a couple times to indicate completion
         for _ in range(2):
             time.sleep(0.1)
             self.pixels.fill((0, 0, 0))
@@ -138,7 +139,7 @@ class Statusled:
             self.pixels.fill((0, int(255 * self.brightness), 0))
             self.pixels.write()
 
-    def manual_control(self):
+    def manual_control(self): # Red spinning animation
         # Number of lit pixels in the spinning segment
         segment_length = 5
         
@@ -172,7 +173,7 @@ class Statusled:
         self.pixels.write()
 
 
-    def finished(self):
+    def finished(self): # Nice rainbow for when the car finished the path
         # Create a rotating rainbow effect
         t = time.ticks_ms() / 1000
         # Speed of rotation (complete rotation every 2 seconds)
@@ -191,7 +192,7 @@ class Statusled:
             # Add hue_offset for rotation effect
             hue = ((i / self.NUM_PIXELS) + hue_offset) % 1.0
             
-            # Convert HSV to RGB (simplified version)
+            # Convert HSV to RGB (HSV is used for a nice rainbow)
             r, g, b = hsv_to_rgb(hue, 1.0, 1.0)
             
             # Set pixel color
@@ -204,7 +205,7 @@ class Statusled:
         # Show the updated pixels
         self.pixels.write()
 
-    def collision(self):
+    def collision(self): # Flashes red twice when the car detects a collision
         for _ in range(2):
             time.sleep(0.1)
             self.pixels.fill((0, 0, 0))
@@ -213,7 +214,7 @@ class Statusled:
             self.pixels.fill((int(255 * self.brightness), 0, 0))
             self.pixels.write()
 
-    def calibration(self, duration = 0.66):
+    def calibration(self, duration = 0.66): # Play a nice filling animation with 2 flickers to indicate a calibration is started 
         start_time = time.ticks_ms()
         elapsed = 0        
         # Run until the animation is complete
@@ -249,7 +250,7 @@ class Statusled:
         self.pixels.fill((0, int(255 * self.brightness), int(255 * self.brightness)))
         self.pixels.write()
     
-    def calibration_finished(self):
+    def calibration_finished(self): # Flash the LED strip twice to indicate a calibration has finished
         for _ in range(2):
             time.sleep(0.1)
             self.pixels.fill((0, 0, 0))
@@ -259,7 +260,7 @@ class Statusled:
             self.pixels.write()
 
 
-    def waiting_for_orders(self, duration = 1.0):
+    def waiting_for_orders(self, duration = 1.0): # Same as waiting for connection, but now green to indicate a connection has been established.
         # Number of lit pixels in the spinning segment
         segment_length = 5
         
@@ -294,23 +295,23 @@ class Statusled:
 
 
 def smooth_sine(frequency):
-    """
+    '''
     Creates a smooth sine wave with given frequency (Hz)
     Returns value between 0 and 1
-    """
+    '''
     from math import sin, pi
     t = time.ticks_ms() / 1000  # Convert to seconds
     return (sin(2 * pi * frequency * t) + 1) / 2
 
-# Helper function to convert HSV to RGB
+# Helper function to convert HSV to RGB, for the rainbow
 def hsv_to_rgb(h, s, v):
-    """
+    '''
     Convert HSV color to RGB
     h: hue (0.0 to 1.0)
     s: saturation (0.0 to 1.0)
     v: value (0.0 to 1.0)
     Returns: (r, g, b) tuple with values 0.0 to 1.0
-    """
+    '''
     if s == 0.0:
         return (v, v, v)
     
