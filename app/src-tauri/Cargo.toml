@@ -1,8 +1,8 @@
 [package]
 name = "FSB_Telemetry_Interface"
-version = "1.1.0"
+version = "1.1.1"
 description = "A Tauri App"
-authors = ["you"]
+authors = ["Gilles De Looze", "Mats De Kort"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
