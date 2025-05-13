@@ -24,7 +24,8 @@ fn get_url() -> String {
 fn connect(state: State<'_, AppData>, ssid: String) -> Option<String> {
     println!("Connect to {ssid}");
     let mut wifi = state.wifi.lock().unwrap();
-    match wifi.connect(&ssid, "") {
+    // Using hardcoded "password" for WPA2 authentication
+    match wifi.connect(&ssid, "password") {
         Ok(result) => {
             if result == true {
                 println!("Connection Successful.");
