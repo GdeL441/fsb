@@ -69,19 +69,7 @@ export function shortestPath(COLS, ROWS, dots) {
       // Get all unvisited nodes
       const nodesToVisit = nodes.filter(node => node !== position && !visitedNodes.has(node));
       
-      // Sort nodes based on whether they're in the initial direction (only for start node)
-      if (position === start) {
-        nodesToVisit.sort((a, b) => {
-          // Calculate dot product with initial direction vector
-          const dirVector = getDirectionVector(startDirection);
-          const aDot = (a.x - start.x) * dirVector[0] + (a.y - start.y) * dirVector[1];
-          const bDot = (b.x - start.x) * dirVector[0] + (b.y - start.y) * dirVector[1];
-          
-          // Prefer nodes that are more aligned with the initial direction
-          return bDot - aDot;
-        });
-      }
-
+      // No sorting based on direction - we want to explore all possibilities
       for (const node of nodesToVisit) {
         let pathBetween = dists.get(position)?.get(node)
         if (pathBetween) {
