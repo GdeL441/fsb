@@ -18,7 +18,7 @@ R_overline = Sensors.Sensor(Pin(27), 14000) # once the initialization is finishe
 B_overline = Sensors.Sensor(Pin(26), 10000)
 
 # Calibration threshold
-L_R_calibration_threshold = 0.8
+L_R_calibration_threshold = 0.75
 B_calibration_threshold = 0.85
 
 # Initialize status LED Strip
@@ -93,14 +93,14 @@ current_step = 0
 intersection_detected = False
 
 # Default PID Constants for line following
-Kp = 1.5  # Proportional gain
+Kp = 0.7  # Proportional gain
 Ki = 0.01  # Integral gain
-Kd = 0.2  # Derivative gain
+Kd = 0.3  # Derivative gain
 
 
 # Base Speed (100% = max)
-BASE_SPEED = 45  # %
-TURN_SPEED = 40  # %
+BASE_SPEED = 85  # %
+TURN_SPEED = 35  # %
 
 # Integral & Derivative Terms for PID-controller
 error_sum = 0
@@ -597,7 +597,7 @@ async def run_main_loop():
             await check_for_intersection()
             
             # Don't do anything if the car is in timeout state, used for waiting on intersections
-            if timeout_time and time.ticks_diff(time.ticks_ms(), timeout_time) < 500:
+            if timeout_time and time.ticks_diff(time.ticks_ms(), timeout_time) < 700:
                 continue
             else:
                 timeout_time = None
@@ -605,27 +605,11 @@ async def run_main_loop():
             if steps[current_step] == "FORWARD":
                 # If the current step is moving forward, just follow the line until the next intersections
 
-                if ((B_overline.status() and intersection_detected) and 
-                    time.ticks_diff(time.ticks_ms(), time_since_next_step) > 500):
-                    # A intersection was detected and now we are at the intersection -> move to next step
-                    # Only stop the motors if the path is finished or the next step is not FORWARD.
-                    
-                    possible_next_step = get_next_step()
-
-                    if possible_next_step is None or possible_next_step != "FORWARD":
-                        stop_motors()
-                        # Robot should stop if the next move is FORWARD and there is a tower to pick up at 
-                        # the next intersections.
-                    if possible_next_step == "FORWARD" and should_pickup_next_step():
-                        stop_motors()
-                        set_servo_angle(ARM_DOWN)
-                        timeout_time = time.ticks_ms()
-
-                    intersection_detected = False
-                    await next_step()
-                else:
+                if True:
                     # Now follows the line with PID-controller
-                    error = (L_overline.value() - R_overline.value()) / 65535.0 # Normalize between -1 and 1
+                    L_error = L_overline.value() / (L_overline.get_threshold() / L_R_calibration_threshold) 
+                    R_error = R_overline.value() / (R_overline.get_threshold() / L_R_calibration_threshold) 
+                    error = (L_error - R_error) / 1.0 # Normalize between -1 and 1
                     error_sum += error # Intergral term
                     error_derivative = error - last_error # Derivative term
                     last_error = error # Save the error for the next iteration
@@ -643,12 +627,43 @@ async def run_main_loop():
 
                     # Slow the car down when the front detects an intersection,
                     # Helps with pickup and makes it so the car doesnt go to far
-                    if intersection_detected:           
-                        Motor_Left.run(left_speed * 0.7)
-                        Motor_Right.run(right_speed * 0.7)
+                    possible_next_step = get_next_step()
+                    if possible_next_step == "FORWARD" and intersection_detected:    
+                        if should_pickup_next_step():
+                            Motor_Left.run(35)
+                            Motor_Right.run(35)
+                        else:
+                            Motor_Left.run(left_speed * 1)
+                            Motor_Right.run(right_speed * 1)
+                        
+                    elif intersection_detected:
+                        Motor_Left.run(35)
+                        Motor_Right.run(35)
+
                     else:
                         Motor_Left.run(left_speed)
                         Motor_Right.run(right_speed)
+
+
+                if ((B_overline.status() and intersection_detected) and 
+                    time.ticks_diff(time.ticks_ms(), time_since_next_step) > 500):
+                    # A intersection was detected and now we are at the intersection -> move to next step
+                    # Only stop the motors if the path is finished or the next step is not FORWARD.
+                    
+                    possible_next_step = get_next_step()
+                    
+                    if possible_next_step is None or possible_next_step != "FORWARD":
+                        stop_motors()
+                        # Robot should stop if the next move is FORWARD and there is a tower to pick up at 
+                        # the next intersections.
+                    if possible_next_step == "FORWARD" and should_pickup_next_step():
+                        stop_motors()
+                        set_servo_angle(ARM_DOWN)
+                        timeout_time = time.ticks_ms()
+
+                    intersection_detected = False
+                    await next_step()
+     
             else:
                 # The robot is currently turning, wait until back on line before moving to next step
                 # To make sure the car actually turned 90 degrees, a minimum turning time is introduced (0.5s), this prevents the car
@@ -684,7 +699,7 @@ async def run_main_loop():
             status_led.collection()
             # The servo is activated to move up, if it has been in this 'up' state for longer than 0.7 seconds,
              # move the servo back down
-            if time.ticks_diff(time.ticks_ms(), servo_active_time) > 700:
+            if time.ticks_diff(time.ticks_ms(), servo_active_time) > 600:
                 servo_active_time = None
                 set_servo_angle(ARM_DOWN)
         elif started and len(green_towers) == 0:

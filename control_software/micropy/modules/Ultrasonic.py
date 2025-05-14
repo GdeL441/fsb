@@ -21,7 +21,7 @@ class Ultrasonic:
         self.uart.write(b'\x55')
         self.t = utime.ticks_ms()
         while not self.uart.any():
-            if utime.ticks_diff(utime.ticks_ms(), self.t) > 10: # Changed to 10ms, while the car is normally driving, it would always
+            if utime.ticks_diff(utime.ticks_ms(), self.t) > 5: # Changed to 10ms, while the car is normally driving, it would always
                                                                 # timeout (±200ms), this makes the main loop run slower
                 print('Timeout (or other error) while reading from US100 sensor!')
         self.uart.readinto(self.buf, 2)
@@ -37,7 +37,7 @@ class Ultrasonic:
         self.uart.write(b'\x55')
         self.t = utime.ticks_ms()
         while not self.uart.any():
-            if utime.ticks_diff(utime.ticks_ms(), self.t) > 10: # Changed to 10ms, while the car is normally driving, it would always
+            if utime.ticks_diff(utime.ticks_ms(), self.t) > 5: # Changed to 10ms, while the car is normally driving, it would always
                                                                 # timeout (±200ms), this makes the main loop run slower
                 return False # In 10ms sound travels 343cm, more than enough for accurate collision detection. 
         self.uart.readinto(self.buf, 2)

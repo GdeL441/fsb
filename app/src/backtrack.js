@@ -43,52 +43,80 @@ export function shortestPath(COLS, ROWS, dots) {
 
   let bestCost = Infinity;
   let bestPath = null;
+  let bestStartDirection = "N";
 
-  function backtrack(position, cost, visitedNodes, path) {
-    if (visitedNodes.size == nodes.length) {
-      let pathHome = dists.get(position)?.get(start)
-      if (!pathHome) return
+  // Try all four possible starting directions
+  const startDirections = ["N", "E", "S", "W"];
+  
+  for (const startDirection of startDirections) {
+    let visited = new Set();
+    visited.add(start);
+    
+    function backtrack(position, cost, visitedNodes, path, currentDirection) {
+      if (visitedNodes.size == nodes.length) {
+        let pathHome = dists.get(position)?.get(start)
+        if (!pathHome) return
 
-      const newCost = cost + pathHome.dist
-      if (newCost < bestCost) {
-        bestCost = newCost
-        bestPath = [...path, ...pathHome.path.slice(1)]
+        const newCost = cost + pathHome.dist
+        if (newCost < bestCost) {
+          bestCost = newCost
+          bestPath = [...path, ...pathHome.path.slice(1)]
+          bestStartDirection = startDirection
+        }
+        return
       }
-      return
-    }
 
-    // Sort nodes to prioritize forward movement first (from start position)
-    const nodesToVisit = nodes.filter(node => node !== position && !visitedNodes.has(node));
-    if (position === start) {
-      nodesToVisit.sort((a, b) => {
-        // Prioritize nodes that are in front of the start (assuming start faces north)
-        if (a.y < start.y && b.y >= start.y) return -1;
-        if (a.y >= start.y && b.y < start.y) return 1;
-        return 0;
-      });
-    }
+      // Get all unvisited nodes
+      const nodesToVisit = nodes.filter(node => node !== position && !visitedNodes.has(node));
+      
+      // Sort nodes based on whether they're in the initial direction (only for start node)
+      if (position === start) {
+        nodesToVisit.sort((a, b) => {
+          // Calculate dot product with initial direction vector
+          const dirVector = getDirectionVector(startDirection);
+          const aDot = (a.x - start.x) * dirVector[0] + (a.y - start.y) * dirVector[1];
+          const bDot = (b.x - start.x) * dirVector[0] + (b.y - start.y) * dirVector[1];
+          
+          // Prefer nodes that are more aligned with the initial direction
+          return bDot - aDot;
+        });
+      }
 
-    for (const node of nodesToVisit) {
-      let pathBetween = dists.get(position)?.get(node)
-      if (pathBetween) {
-        visitedNodes.add(node);
-        backtrack(node, cost + pathBetween.dist, visitedNodes, [...path, ...pathBetween.path.slice(1)]);
-        visitedNodes.delete(node);
+      for (const node of nodesToVisit) {
+        let pathBetween = dists.get(position)?.get(node)
+        if (pathBetween) {
+          // Calculate the actual initial direction when moving from start
+          let actualFirstDirection = null;
+          if (position === start && pathBetween.path.length > 1) {
+            actualFirstDirection = getDirection(pathBetween.path[0], pathBetween.path[1]);
+            
+            // Skip paths that don't match our desired initial direction
+            if (actualFirstDirection !== startDirection) continue;
+          }
+          
+          visitedNodes.add(node);
+          backtrack(
+            node, 
+            cost + pathBetween.dist, 
+            visitedNodes, 
+            [...path, ...pathBetween.path.slice(1)], 
+            actualFirstDirection || currentDirection
+          );
+          visitedNodes.delete(node);
+        }
       }
     }
-  };
 
-  let visited = new Set()
-  visited.add(start)
-  backtrack(start, 0, visited, [start])
+    // Start backtracking with the current startDirection
+    backtrack(start, 0, visited, [start], startDirection);
+  }
 
   if (bestPath) {
-    const directions = pathToDirections(bestPath)
-    return { cost: bestCost, path: bestPath, directions }
+    const directions = pathToDirections(bestPath, bestStartDirection)
+    return { cost: bestCost, path: bestPath, directions, startDirection: bestStartDirection }
   }
 }
 
-// Calculate path time based on straight segments and turns
 function calculatePathTime(path) {
   if (path.length < 2) return 0;
   
@@ -118,7 +146,6 @@ function getDirection(from, to) {
   return 'E';
 }
 
-// Modified BFS to prioritize straight paths
 function prioritizedBfs(ROWS, COLS, grid, start, goal) {
   let queue = [[start, [start]]];
   let visited = new Set([`${start.x},${start.y}`]);
@@ -186,7 +213,6 @@ function addNeighborIfValid(nx, ny, neighbors, ROWS, COLS, grid, visited) {
   }
 }
 
-// Rest of the code remains the same...
 function pathToDirections(path, heading = "N") {
   const directions = []
   for (let i = 0; i < path.length - 1; i++) {
@@ -223,11 +249,6 @@ function pathToDirections(path, heading = "N") {
       heading = "W"
     }
   };
-
-  // Make sure we always end up heading north
-  if (heading == "E") directions.push("LEFT")
-  else if (heading == "S") directions.push(["LEFT", "LEFT"])
-  else if (heading == "W") directions.push("RIGHT")
 
   return directions.flat()
 }

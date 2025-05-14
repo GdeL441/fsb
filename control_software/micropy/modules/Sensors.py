@@ -29,3 +29,6 @@ class Sensor:
         threshold = white_value * calibration_threshold
         self.set_threshold(threshold) # Calibrates the sensor
         return threshold # Return the value (used to send it to frontend)
+    
+    def get_threshold(self):
+        return self.threshold
