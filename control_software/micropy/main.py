@@ -330,7 +330,7 @@ def turn_left():
     
     if turn_elapsed_time < 0.05:
         turn_speed = 80
-    elif turn_elapsed_time < 0.12:
+    elif turn_elapsed_time < 0.16:
         turn_speed = 100
     else:
         turn_speed = TURN_SPEED
@@ -350,7 +350,7 @@ def turn_right():
     
     if turn_elapsed_time < 0.05:
         turn_speed = 80
-    elif turn_elapsed_time < 0.12:
+    elif turn_elapsed_time < 0.16:
         turn_speed = 100
     else:
         turn_speed = TURN_SPEED
